@@ -60,6 +60,13 @@ All notable changes to the Calndr Backend project will be documented in this fil
 - **📱 Reliability**: 99.9% uptime with multi-AZ deployment and automated failover
 - **🔍 Observability**: Comprehensive monitoring and alerting for proactive issue resolution
 
+## [2.0.2] - 2025-01-27 3:00:00 PM EST
+
+### Changed
+- Updated GitHub Actions workflow to use AWS access key secrets instead of OIDC roles
+- Simplified CI/CD authentication using AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY repository secrets
+- Streamlined deployment pipeline configuration for easier setup
+
 ## [2.0.1] - 2025-01-27 2:30:00 PM EST
 
 ### Added
