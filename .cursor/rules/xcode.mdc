@@ -1,0 +1,5 @@
+---
+description: never build swift code
+globs:
+alwaysApply: true
+---

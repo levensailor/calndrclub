@@ -1,0 +1,55 @@
+# .cursorrules
+rules:
+  # Global rules
+  - name: "Project standards"
+    description: |
+      - Never use hardcoded names in code, use variables
+      - Always enable logging with line number, EST timestamp, and function name
+      - Use AM/PM instead of 24 hour time
+      - Commit and push code after every change with relevant commit message
+      - Use environment variables for configuration
+      - Add each user prompt to the CHANGELOG.md file with a timestamp and a description of the change
+    
+  # Python backend rules
+  - name: "Python backend"
+    globs: ["backend/**/*.py", "*.py"]
+    description: |
+      - Use FastAPI, Pydantic, uvicorn and python-dotenv
+      - Include proper error handling and logging
+      - Use type hints for all function parameters and return values
+      - Follow async/await patterns for database operations
+      - Use the included ./deploy.sh script to deploy the backend
+      - Never run the backend locally, always use the deployed version
+    
+  # iOS Swift rules
+  - name: "iOS development"
+    globs: ["ios/**/*.swift"]
+    description: |
+      - Use latest SwiftUI documentation
+      - Never build the app, just write the code
+      - Check for race conditions and use proper locking
+      - Ensure theme is consistent across the app
+      - Add new features to the help page
+    
+  # Vue.js frontend rules
+  - name: "Vue.js frontend"
+    globs: ["vue-app/**/*.vue", "vue-app/**/*.js"]
+    description: |
+      - Ignore for now any vue code, we are not using it yet
+    
+  # Database migrations
+  - name: "Database migrations"
+    globs: ["migrate_*.py", "**/migrations/**/*.py"]
+    description: |
+      - Always include rollback functionality
+      - Use environment variables for database connection
+      - Include proper error handling and logging
+      - Test migrations on development data first
+    
+  # Configuration files
+  - name: "Environment and config"
+    globs: [".env*", "*.json", "*.yaml", "*.yml"]
+    description: |
+      - Never commit sensitive data
+      - Use .env files for environment-specific configuration
+      - Document all configuration options

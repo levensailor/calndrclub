@@ -1,0 +1,30 @@
+# Environment variables
+.env
+
+# Python virtual environment
+venv/
+__pycache__/
+
+# Node dependencies
+node_modules/
+
+# Build artifacts
+dist/
+.DS_Store
+
+# SQLite
+*.db
+*.db-journal 
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+
+# Virtualenv
+/venv/
+/v/
+*.pyc
+__pycache__/
+.env
+AuthKey_4LZC88RV85.p8
+.env
