@@ -2,6 +2,24 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.5] - 2025-01-26 18:15:00 EST
+
+### Fixed - Database URL Special Character Encoding Issue
+- **🔧 URL Encoding Fix**: Fixed "Invalid IPv6 URL" error caused by special characters in database password
+  - Added proper URL encoding using `urllib.parse.quote_plus()` for database credentials
+  - Database passwords containing `[`, `]`, `!`, `@`, and other special characters are now properly encoded
+  - Updated `core/config.py` to encode both username and password in DATABASE_URL construction
+- **🔍 Enhanced URL Debugging**: Improved database configuration logging to show URL encoding details
+  - Shows detection of special characters in passwords
+  - Displays both raw (unencoded) and final (encoded) DATABASE_URL for comparison
+  - Added URL parsing success confirmation
+- **🧪 Updated Test Script**: Enhanced `test_db_connection.py` to validate URL encoding functionality
+  - Detects and logs special character presence in passwords
+  - Shows before/after URL encoding lengths for verification
+
+### Root Cause Analysis
+The error `ValueError: Invalid IPv6 URL` was caused by square brackets `[` and `]` in the database password `MChksLq[i2W4OEkxAC8dPKVNzPpaNgI!`. URL parsers interpret square brackets as IPv6 address delimiters, causing the parsing to fail. The fix properly URL-encodes these characters (`[` becomes `%5B`, `]` becomes `%5D`) before URL construction.
+
 ## [2.0.4] - 2025-01-26 18:00:00 EST
 
 ### Added - Comprehensive Database Connection Logging

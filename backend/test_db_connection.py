@@ -23,6 +23,15 @@ async def test_database_connection():
         from core.config import settings
         logger.info(f"Configuration loaded successfully")
         
+        # Log URL encoding information
+        from urllib.parse import quote_plus
+        if settings.DB_PASSWORD:
+            has_special_chars = any(char in settings.DB_PASSWORD for char in ['[', ']', '!', '@', '#', '$', '%', '^', '&', '*'])
+            logger.info(f"Password contains special characters: {has_special_chars}")
+            if has_special_chars:
+                logger.info(f"Original password length: {len(settings.DB_PASSWORD)}")
+                logger.info(f"URL-encoded password length: {len(quote_plus(settings.DB_PASSWORD))}")
+        
         # Import database
         from core.database import database
         logger.info("Database module imported successfully")

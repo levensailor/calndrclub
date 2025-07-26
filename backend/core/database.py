@@ -27,10 +27,16 @@ def log_database_config():
     logger.info(f"settings.DB_PORT: {settings.DB_PORT}")
     logger.info(f"settings.DB_NAME: {settings.DB_NAME}")
     
+    # Show URL encoding for special characters
+    from urllib.parse import quote_plus
+    if settings.DB_PASSWORD:
+        logger.info(f"DB_PASSWORD contains special chars: {'[' in settings.DB_PASSWORD or ']' in settings.DB_PASSWORD or '!' in settings.DB_PASSWORD or '@' in settings.DB_PASSWORD}")
+        logger.info(f"URL-encoded password length: {len(quote_plus(settings.DB_PASSWORD))}")
+    
     # Construct and log the DATABASE_URL
     constructed_url = f"postgresql+asyncpg://{settings.DB_USER}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
-    logger.info(f"Constructed DATABASE_URL: {constructed_url}")
-    logger.info(f"settings.DATABASE_URL: {settings.DATABASE_URL}")
+    logger.info(f"Raw DATABASE_URL (unencoded): {constructed_url}")
+    logger.info(f"Final DATABASE_URL (encoded): {settings.DATABASE_URL}")
     
     # Parse and validate URL
     try:
@@ -42,6 +48,7 @@ def log_database_config():
         logger.info(f"Parsed URL path: {parsed.path}")
         logger.info(f"Parsed URL username: {parsed.username}")
         logger.info(f"Parsed URL password: {'SET' if parsed.password else 'NOT_SET'}")
+        logger.info("URL parsing successful - no special character issues")
     except Exception as e:
         logger.error(f"Failed to parse DATABASE_URL: {e}")
     
