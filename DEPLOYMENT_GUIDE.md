@@ -37,9 +37,20 @@ AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 ```
 
-## Step 2: Set Up Terraform Backend (Recommended)
+## Step 2: Set Up Terraform Backend
 
-For production use, set up an S3 backend for Terraform state:
+### Option A: Automatic Setup (Recommended)
+The deployment scripts will automatically set up the S3 backend when you run them. No manual action needed.
+
+### Option B: Manual Setup
+If you prefer to set up the backend manually:
+
+```bash
+# Run the backend setup script
+./terraform/setup-backend.sh
+```
+
+Or manually create the resources:
 
 ```bash
 # Create S3 bucket for Terraform state
@@ -53,6 +64,19 @@ aws dynamodb create-table \
     --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
     --region us-east-1
 ```
+
+### Option C: Local Backend (Testing Only)
+For testing without S3 backend, you can use local state:
+
+```bash
+cd terraform
+# Backup the original main.tf
+mv main.tf main-s3.tf
+# Use the local backend version
+mv main-local.tf main.tf
+```
+
+**Note: Local backend doesn't support team collaboration and state locking.**
 
 ## Step 3: Deploy Infrastructure
 
@@ -162,10 +186,24 @@ The updated GitHub Actions workflow now:
 - Shows helpful warning messages if infrastructure isn't deployed
 - Uses dynamic cluster names based on environment
 
-### 2. Terraform State Issues
+### 2. Terraform Backend/State Issues
 
-If you encounter state-related issues:
+**DynamoDB Table Not Found Error:**
+```bash
+# If you see "ResourceNotFoundException" for DynamoDB table
+./terraform/setup-backend.sh
+```
 
+**S3 Bucket Not Found Error:**
+```bash
+# Check if bucket exists
+aws s3api head-bucket --bucket calndr-terraform-state
+
+# If not, run setup script
+./terraform/setup-backend.sh
+```
+
+**General State Issues:**
 ```bash
 cd terraform
 
@@ -174,6 +212,10 @@ terraform state list
 
 # Import existing resources if needed
 terraform import aws_ecs_cluster.main calndr-production-cluster
+
+# If state is corrupted, you can start fresh (CAUTION: Will lose state history)
+rm -rf .terraform
+terraform init
 ```
 
 ### 3. AWS Credentials Issues

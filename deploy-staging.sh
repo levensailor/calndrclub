@@ -40,6 +40,13 @@ if ! aws sts get-caller-identity > /dev/null 2>&1; then
     exit 1
 fi
 
+# Check if Terraform backend infrastructure exists
+log "Checking Terraform backend infrastructure..."
+if ! aws s3api head-bucket --bucket "calndr-terraform-state" 2>/dev/null; then
+    warn "Terraform backend not set up. Setting up S3 bucket and DynamoDB table..."
+    "$SCRIPT_DIR/terraform/setup-backend.sh"
+fi
+
 log "Starting deployment of $ENVIRONMENT infrastructure..."
 
 # Change to terraform directory

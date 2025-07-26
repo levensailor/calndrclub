@@ -266,8 +266,8 @@ jobs:
   cleanup:
     name: Cleanup Old Images
     runs-on: ubuntu-latest
-    needs: [deploy-staging, deploy-production]
-    if: always() && (needs.deploy-staging.result == 'success' || needs.deploy-production.result == 'success')
+    needs: [test-and-build]
+    if: always() && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop') && github.event_name == 'push'
     
     steps:
     - name: Configure AWS credentials
