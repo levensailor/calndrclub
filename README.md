@@ -49,6 +49,7 @@ DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=calndr
 
+
 # Redis Configuration
 REDIS_HOST=localhost
 REDIS_PORT=6379
