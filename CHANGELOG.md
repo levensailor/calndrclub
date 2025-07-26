@@ -2,6 +2,26 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.3] - 2025-01-26 17:30:00 EST
+
+### Added - Complete Environment Variable Configuration for ECS
+- **🔧 ECS Environment Variables**: Added all missing environment variables to ECS task definitions for both staging and production
+- **🔐 SSM Parameter Store**: Created SSM parameters for all sensitive configuration values including:
+  - Google Places API key for location services
+  - SMTP configuration for email notifications
+  - Apple Sign-In credentials (team ID, key ID, private key)
+  - Google Sign-In client secrets
+  - SNS platform application ARN for push notifications
+  - Redis authentication tokens
+- **⚙️ Terraform Configuration**: Added comprehensive variable definitions in variables.tf
+- **🎯 Environment-Specific Values**: Updated staging.tfvars and production.tfvars with new configuration options
+- **📋 Cache Configuration**: Added cache TTL settings for weather, events, custody, and user profile data
+- **🔄 Infrastructure Outputs**: Updated outputs.tf to include all new SSM parameter references
+
+### Fixed - Database Connection Issues
+- **📊 Database URL Configuration**: Fixed "Invalid IPv6 URL" error by ensuring all required database environment variables are properly configured in ECS tasks
+- **🔗 Redis Configuration**: Added proper Redis authentication handling for both staging (no auth) and production (with auth)
+
 ## [2.0.2] - 2025-01-26 09:29:00 EST
 
 ### Fixed - Terraform Deployment Infrastructure Issues

@@ -91,12 +91,18 @@ output "github_actions_role_arn" {
 output "ssm_parameters" {
   description = "SSM parameter names for secrets"
   value = {
-    secret_key      = aws_ssm_parameter.secret_key.name
-    db_user         = aws_ssm_parameter.db_user.name
-    db_password     = aws_ssm_parameter.db_password.name
-    aws_access_key  = aws_ssm_parameter.aws_access_key.name
-    aws_secret_key  = aws_ssm_parameter.aws_secret_key.name
-    redis_auth      = var.environment == "production" ? aws_ssm_parameter.redis_auth[0].name : null
+    secret_key                     = aws_ssm_parameter.secret_key.name
+    db_user                        = aws_ssm_parameter.db_user.name
+    db_password                    = aws_ssm_parameter.db_password.name
+    aws_access_key                 = aws_ssm_parameter.aws_access_key.name
+    aws_secret_key                 = aws_ssm_parameter.aws_secret_key.name
+    redis_auth                     = var.environment == "production" ? aws_ssm_parameter.redis_auth[0].name : aws_ssm_parameter.redis_auth_staging[0].name
+    google_places_api_key         = aws_ssm_parameter.google_places_api_key.name
+    sns_platform_application_arn  = aws_ssm_parameter.sns_platform_application_arn.name
+    smtp_user                     = aws_ssm_parameter.smtp_user.name
+    smtp_password                 = aws_ssm_parameter.smtp_password.name
+    apple_private_key             = aws_ssm_parameter.apple_private_key.name
+    google_client_secret          = aws_ssm_parameter.google_client_secret.name
   }
   sensitive = true
 } 

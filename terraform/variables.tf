@@ -275,4 +275,79 @@ variable "backup_bucket_name" {
   description = "S3 bucket name for application backups"
   type        = string
   default     = ""
+}
+
+# Email/SMTP Configuration
+variable "smtp_host" {
+  description = "SMTP host for email sending"
+  type        = string
+  default     = ""
+}
+
+variable "smtp_port" {
+  description = "SMTP port for email sending"
+  type        = number
+  default     = 587
+}
+
+variable "smtp_user" {
+  description = "SMTP username for email sending"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "smtp_password" {
+  description = "SMTP password for email sending"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+# Apple Sign-In Configuration
+variable "apple_team_id" {
+  description = "Apple Team ID for Sign-in"
+  type        = string
+  default     = ""
+}
+
+variable "apple_key_id" {
+  description = "Apple Key ID for Sign-in"
+  type        = string
+  default     = ""
+}
+
+variable "apple_private_key" {
+  description = "Apple Private Key for Sign-in"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "apple_redirect_uri" {
+  description = "Apple redirect URI for Sign-in"
+  type        = string
+  default     = ""
+}
+
+# Google Sign-In Configuration
+variable "google_redirect_uri" {
+  description = "Google redirect URI for Sign-in"
+  type        = string
+  default     = "http://localhost:8000/auth/google/callback"
+}
+
+# AWS Configuration
+variable "aws_s3_bucket_name" {
+  description = "AWS S3 bucket name for file storage"
+  type        = string
+  default     = ""
+}
+
+# Push Notifications
+variable "sns_platform_application_arn" {
+  description = "SNS Platform Application ARN for push notifications"
+  type        = string
+  sensitive   = true
+  default     = ""
 } 

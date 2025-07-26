@@ -290,4 +290,69 @@ resource "aws_ssm_parameter" "aws_secret_key" {
   tags = {
     Name = "${var.project_name}-${var.environment}-aws-secret-key"
   }
+}
+
+# Google Places API Key
+resource "aws_ssm_parameter" "google_places_api_key" {
+  name  = "/${var.project_name}/${var.environment}/api/google_places_api_key"
+  type  = "SecureString"
+  value = var.google_places_api_key
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-google-places-api-key"
+  }
+}
+
+# SNS Platform Application ARN
+resource "aws_ssm_parameter" "sns_platform_application_arn" {
+  name  = "/${var.project_name}/${var.environment}/aws/sns_platform_application_arn"
+  type  = "SecureString"
+  value = var.sns_platform_application_arn
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-sns-platform-arn"
+  }
+}
+
+# SMTP Configuration
+resource "aws_ssm_parameter" "smtp_user" {
+  name  = "/${var.project_name}/${var.environment}/smtp/user"
+  type  = "SecureString"
+  value = var.smtp_user
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-smtp-user"
+  }
+}
+
+resource "aws_ssm_parameter" "smtp_password" {
+  name  = "/${var.project_name}/${var.environment}/smtp/password"
+  type  = "SecureString"
+  value = var.smtp_password
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-smtp-password"
+  }
+}
+
+# Apple Sign-In Configuration
+resource "aws_ssm_parameter" "apple_private_key" {
+  name  = "/${var.project_name}/${var.environment}/apple/private_key"
+  type  = "SecureString"
+  value = var.apple_private_key
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-apple-private-key"
+  }
+}
+
+# Google Sign-In Configuration
+resource "aws_ssm_parameter" "google_client_secret" {
+  name  = "/${var.project_name}/${var.environment}/google/client_secret"
+  type  = "SecureString"
+  value = var.google_client_secret
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-google-client-secret"
+  }
 } 

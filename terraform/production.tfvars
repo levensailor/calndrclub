@@ -14,6 +14,31 @@ secret_key = "production_secret_key_change_me"
 aws_access_key_id = "placeholder"
 aws_secret_access_key = "placeholder"
 
+# API Keys and External Services
+google_places_api_key = ""
+sns_platform_application_arn = ""
+
+# Email/SMTP Configuration
+smtp_host = ""
+smtp_port = 587
+smtp_user = ""
+smtp_password = ""
+
+# Apple Sign-In Configuration
+apple_client_id = ""
+apple_team_id = ""
+apple_key_id = ""
+apple_private_key = ""
+apple_redirect_uri = ""
+
+# Google Sign-In Configuration
+google_client_id = ""
+google_client_secret = ""
+google_redirect_uri = "https://calndr.club/auth/google/callback"
+
+# AWS S3 Configuration
+aws_s3_bucket_name = ""
+
 # Database configuration - production sized
 db_instance_class = "db.t3.small"
 db_allocated_storage = 100

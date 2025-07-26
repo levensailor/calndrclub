@@ -76,6 +76,19 @@ resource "aws_ssm_parameter" "redis_auth" {
   }
 }
 
+# Store Redis auth token in SSM for staging (no auth needed but parameter expected)
+resource "aws_ssm_parameter" "redis_auth_staging" {
+  count = var.environment != "production" ? 1 : 0
+  
+  name  = "/${var.project_name}/${var.environment}/redis/auth_token"
+  type  = "SecureString"
+  value = ""  # Empty for staging as Redis auth is not enabled
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-redis-auth"
+  }
+}
+
 # CloudWatch Log Group for Redis
 resource "aws_cloudwatch_log_group" "redis" {
   name              = "/elasticache/${var.project_name}-${var.environment}-redis"

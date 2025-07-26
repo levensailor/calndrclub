@@ -140,6 +140,71 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "ACCESS_TOKEN_EXPIRE_MINUTES"
           value = "43200"
+        },
+        # Cache TTL settings
+        {
+          name  = "CACHE_TTL_WEATHER_FORECAST"
+          value = "3600"
+        },
+        {
+          name  = "CACHE_TTL_WEATHER_HISTORIC"
+          value = "259200"
+        },
+        {
+          name  = "CACHE_TTL_EVENTS"
+          value = "900"
+        },
+        {
+          name  = "CACHE_TTL_CUSTODY"
+          value = "7200"
+        },
+        {
+          name  = "CACHE_TTL_USER_PROFILE"
+          value = "1800"
+        },
+        {
+          name  = "CACHE_TTL_FAMILY_DATA"
+          value = "1800"
+        },
+        # SMTP Configuration (non-sensitive values)
+        {
+          name  = "SMTP_HOST"
+          value = var.smtp_host
+        },
+        {
+          name  = "SMTP_PORT"
+          value = tostring(var.smtp_port)
+        },
+        # Apple Sign-In (non-sensitive values)
+        {
+          name  = "APPLE_CLIENT_ID"
+          value = var.apple_client_id
+        },
+        {
+          name  = "APPLE_TEAM_ID"
+          value = var.apple_team_id
+        },
+        {
+          name  = "APPLE_KEY_ID"
+          value = var.apple_key_id
+        },
+        {
+          name  = "APPLE_REDIRECT_URI"
+          value = var.apple_redirect_uri
+        },
+        # Google Sign-In (non-sensitive values)
+        {
+          name  = "GOOGLE_CLIENT_ID"
+          value = var.google_client_id
+        },
+        {
+          name  = "GOOGLE_REDIRECT_URI"
+          value = var.google_redirect_uri
+        },
+        # AWS S3 Configuration
+        {
+          name  = "AWS_S3_BUCKET_NAME"
+          value = var.aws_s3_bucket_name
         }
       ]
 
@@ -163,6 +228,34 @@ resource "aws_ecs_task_definition" "app" {
         {
           name      = "AWS_SECRET_ACCESS_KEY"
           valueFrom = aws_ssm_parameter.aws_secret_key.arn
+        },
+        {
+          name      = "REDIS_PASSWORD"
+          valueFrom = var.environment == "production" ? aws_ssm_parameter.redis_auth[0].arn : aws_ssm_parameter.redis_auth_staging[0].arn
+        },
+        {
+          name      = "GOOGLE_PLACES_API_KEY"
+          valueFrom = aws_ssm_parameter.google_places_api_key.arn
+        },
+        {
+          name      = "SNS_PLATFORM_APPLICATION_ARN"
+          valueFrom = aws_ssm_parameter.sns_platform_application_arn.arn
+        },
+        {
+          name      = "SMTP_USER"
+          valueFrom = aws_ssm_parameter.smtp_user.arn
+        },
+        {
+          name      = "SMTP_PASSWORD"
+          valueFrom = aws_ssm_parameter.smtp_password.arn
+        },
+        {
+          name      = "APPLE_PRIVATE_KEY"
+          valueFrom = aws_ssm_parameter.apple_private_key.arn
+        },
+        {
+          name      = "GOOGLE_CLIENT_SECRET"
+          valueFrom = aws_ssm_parameter.google_client_secret.arn
         }
       ]
 
