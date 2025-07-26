@@ -2,6 +2,17 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.1] - 2024-12-30 20:40:00 EST
+
+### Fixed - ECS Cluster Not Found Error
+- **🔧 GitHub Actions Workflow**: Fixed "ClusterNotFoundException" error by adding cluster existence checks
+- **📋 Dynamic Infrastructure Names**: Updated workflow to use proper cluster and service names based on environment
+- **🚀 Environment-Specific Deployment Scripts**: Added `deploy-staging.sh` and `deploy-production.sh` scripts
+- **📄 Terraform Configuration**: Created environment-specific `.tfvars` files for staging and production
+- **📚 Documentation Update**: Comprehensive DEPLOYMENT_GUIDE.md with troubleshooting steps
+- **⚠️ Graceful Failure Handling**: GitHub Actions now provide helpful warnings when infrastructure isn't deployed
+- **🔄 Improved CI/CD Flow**: Workflow checks infrastructure before attempting deployments
+
 ## [2.0.0] - 2024-12-30 15:00:00 EST
 
 ### Added - Containerization and Scalable Infrastructure

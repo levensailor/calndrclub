@@ -1,325 +1,246 @@
 # Calndr Backend Deployment Guide
 
 ## Overview
-This guide provides step-by-step instructions for deploying the Calndr Backend, which has been containerized and configured for AWS ECS deployment with full CI/CD pipeline support.
+
+This guide explains how to deploy the Calndr backend infrastructure and application to AWS using Terraform and GitHub Actions.
+
+## Problem: Cluster Not Found Error
+
+If you're seeing the error `ClusterNotFoundException: Cluster not found`, it means the ECS infrastructure hasn't been deployed yet. This guide will help you fix this issue.
 
 ## Prerequisites
 
-### Local Development
-- Docker and Docker Compose installed
-- Python 3.11+ (for local testing without Docker)
-- Git
-- Text editor/IDE
+1. **AWS CLI configured** with appropriate permissions
+2. **Terraform installed** (version >= 1.0)
+3. **GitHub repository** with proper secrets configured
+4. **jq installed** (for JSON processing in scripts)
 
-### AWS Deployment
-- AWS CLI configured with appropriate credentials
-- Terraform installed (v1.0+)
-- GitHub repository with Actions enabled
-- Domain name (optional, for custom domains)
+### Required AWS Permissions
 
-## Local Development Setup
+Your AWS user/role needs permissions for:
+- ECS (Elastic Container Service)
+- ECR (Elastic Container Registry)
+- RDS (Relational Database Service)
+- ElastiCache (Redis)
+- VPC and networking resources
+- IAM roles and policies
+- CloudWatch logs
+- Application Load Balancer
+- S3 (for Terraform state - optional but recommended)
 
-### 1. Clone and Setup Environment
-```bash
-git clone <your-repo-url>
-cd calndr-backend-refactor
-cp .env.example .env
+## Step 1: Configure GitHub Secrets
+
+Ensure these secrets are set in your GitHub repository settings:
+
+```
+AWS_ACCESS_KEY_ID=your_aws_access_key
+AWS_SECRET_ACCESS_KEY=your_aws_secret_key
 ```
 
-### 2. Configure Environment Variables
-Edit the `.env` file with your specific values:
+## Step 2: Set Up Terraform Backend (Recommended)
 
-**Required for local development:**
+For production use, set up an S3 backend for Terraform state:
+
 ```bash
-# Database (using Docker Compose defaults)
-DB_USER=calndr_user
-DB_PASSWORD=calndr_password
-DB_HOST=postgres
-DB_PORT=5432
-DB_NAME=calndr_dev
+# Create S3 bucket for Terraform state
+aws s3 mb s3://calndr-terraform-state --region us-east-1
 
-# Redis (using Docker Compose defaults)
-REDIS_HOST=redis
-REDIS_PORT=6379
-
-# Security (change for production)
-SECRET_KEY=your_secure_secret_key_here
+# Create DynamoDB table for state locking
+aws dynamodb create-table \
+    --table-name calndr-terraform-locks \
+    --attribute-definitions AttributeName=LockID,AttributeType=S \
+    --key-schema AttributeName=LockID,KeyType=HASH \
+    --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+    --region us-east-1
 ```
 
-**Optional for local development:**
-- AWS credentials (for S3, SNS features)
-- Google Places API key
-- Apple/Google Sign-In credentials
-- SMTP configuration
+## Step 3: Deploy Infrastructure
 
-### 3. Start Local Development Environment
+### Option A: Deploy Staging Environment
+
 ```bash
-# Start all services
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop services
-docker-compose down
-
-# Stop and remove volumes (clean slate)
-docker-compose down --volumes
+# Deploy staging infrastructure
+./deploy-staging.sh
 ```
 
-### 4. Access Local Services
-- **API**: http://localhost:8000
-- **API Documentation**: http://localhost:8000/docs
-- **Health Check**: http://localhost:8000/health
-- **Nginx (Load Balancer)**: http://localhost:80
-- **PostgreSQL**: localhost:5432
-- **Redis**: localhost:6379
+This will:
+- Create the `calndr-staging-cluster` ECS cluster
+- Set up VPC, subnets, and networking
+- Create RDS PostgreSQL database
+- Set up Redis cache
+- Create ECR repository
+- Configure load balancer and security groups
 
-## AWS Infrastructure Deployment
+### Option B: Deploy Production Environment
 
-### 1. Prepare AWS Environment
 ```bash
-# Configure AWS CLI
-aws configure
-
-# Verify access
-aws sts get-caller-identity
+# Deploy production infrastructure (requires extra confirmation)
+./deploy-production.sh
 ```
 
-### 2. Initialize Terraform
+This will:
+- Create the `calndr-production-cluster` ECS cluster
+- Set up production-sized infrastructure
+- Enable deletion protection and enhanced backups
+
+### Manual Deployment (Alternative)
+
+If you prefer manual control:
+
 ```bash
 cd terraform
 
 # Initialize Terraform
 terraform init
 
-# Review planned changes
-terraform plan
+# For staging
+terraform workspace new staging
+terraform plan -var-file="staging.tfvars"
+terraform apply -var-file="staging.tfvars"
 
-# Apply infrastructure
-terraform apply
+# For production
+terraform workspace new production
+terraform plan -var-file="production.tfvars"
+terraform apply -var-file="production.tfvars"
 ```
 
-### 3. Configure GitHub Actions Secrets
-Add these secrets to your GitHub repository:
+## Step 4: Verify Infrastructure
 
-**Required AWS Secrets:**
-- `AWS_ACCOUNT_ID`: Your AWS account ID
-- `AWS_REGION`: Your deployment region (e.g., us-east-1)
-- `ECR_REPOSITORY`: ECR repository name from Terraform output
+After deployment, verify the infrastructure exists:
 
-**Application Secrets:**
-- `SECRET_KEY`: Secure secret key for JWT tokens
-- `DB_PASSWORD`: Database password (auto-generated by Terraform)
-- `REDIS_AUTH_TOKEN`: Redis auth token (auto-generated by Terraform)
-
-**Optional Secrets:**
-- `AWS_S3_BUCKET_NAME`: S3 bucket for file storage
-- `GOOGLE_PLACES_API_KEY`: Google Places API key
-- `APPLE_CLIENT_ID`, `APPLE_TEAM_ID`, etc.: Apple Sign-In configuration
-- `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`: Google Sign-In configuration
-- `SMTP_*`: Email configuration
-
-### 4. Deploy Using Scripts
 ```bash
-# Initialize infrastructure
-./deploy-containerized.sh init-infrastructure
+# Check ECS clusters
+aws ecs list-clusters --region us-east-1
 
-# Deploy to staging
-./deploy-containerized.sh deploy-staging
-
-# Deploy to production
-./deploy-containerized.sh deploy-production
-
-# Check deployment status
-./deploy-containerized.sh status
-
-# View logs
-./deploy-containerized.sh logs
+# Check specific cluster
+aws ecs describe-clusters --clusters calndr-staging-cluster --region us-east-1
+aws ecs describe-clusters --clusters calndr-production-cluster --region us-east-1
 ```
 
-## CI/CD Pipeline
+## Step 5: Trigger Application Deployment
 
-### Automatic Deployments
-The GitHub Actions pipeline automatically:
+Once infrastructure is deployed:
 
-1. **On Push to `develop`**: Deploys to staging
-2. **On Push to `main`**: Deploys to production
-3. **Security Scanning**: Runs Trivy vulnerability scans
-4. **Health Checks**: Verifies deployment success
-
-### Manual Deployments
-You can also trigger deployments manually:
-
+### For Staging
+Push to the `develop` branch:
 ```bash
-# Build and push image manually
-docker build -t calndr-backend .
-docker tag calndr-backend:latest <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/calndr-backend:latest
-aws ecr get-login-password --region <REGION> | docker login --username AWS --password-stdin <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com
-docker push <AWS_ACCOUNT_ID>.dkr.ecr.<REGION>.amazonaws.com/calndr-backend:latest
+git checkout develop
+git push origin develop
+```
 
-# Update ECS service
-aws ecs update-service --cluster calndr-production --service calndr-backend-service --force-new-deployment
+### For Production
+Push to the `main` branch:
+```bash
+git checkout main
+git push origin main
 ```
 
 ## Environment Configuration
 
-### Development Environment
-- **Purpose**: Local development and testing
-- **Database**: Local PostgreSQL in Docker
-- **Redis**: Local Redis in Docker
-- **Scaling**: Single instance
-- **Monitoring**: Docker Compose logs
-
 ### Staging Environment
-- **Purpose**: Pre-production testing
-- **Database**: AWS RDS PostgreSQL
-- **Redis**: AWS ElastiCache
-- **Scaling**: 1-2 ECS tasks
-- **Monitoring**: CloudWatch logs and metrics
-- **Domain**: staging.yourdomain.com (if configured)
+- **Cluster**: `calndr-staging-cluster`
+- **Service**: `calndr-staging-service`
+- **Domain**: `staging.calndr.club`
+- **Size**: Smaller instances for cost efficiency
+- **Backup**: 3-day retention
+- **Deletion Protection**: Disabled
 
 ### Production Environment
-- **Purpose**: Live application
-- **Database**: AWS RDS PostgreSQL with read replica
-- **Redis**: AWS ElastiCache with clustering
-- **Scaling**: 2-10 ECS tasks (auto-scaling enabled)
-- **Monitoring**: Full CloudWatch monitoring + alerts
-- **Domain**: yourdomain.com (if configured)
+- **Cluster**: `calndr-production-cluster`
+- **Service**: `calndr-production-service`
+- **Domain**: `calndr.club`
+- **Size**: Production-ready instances
+- **Backup**: 30-day retention
+- **Deletion Protection**: Enabled
 
-## Database Management
+## Troubleshooting
 
-### Local Development
+### 1. GitHub Actions Still Failing
+
+The updated GitHub Actions workflow now:
+- Checks if clusters exist before attempting deployment
+- Shows helpful warning messages if infrastructure isn't deployed
+- Uses dynamic cluster names based on environment
+
+### 2. Terraform State Issues
+
+If you encounter state-related issues:
+
 ```bash
-# Connect to local database
-docker-compose exec postgres psql -U calndr_user -d calndr_dev
+cd terraform
 
-# Run database migrations (when implemented)
-docker-compose exec app python -m alembic upgrade head
+# List current state
+terraform state list
+
+# Import existing resources if needed
+terraform import aws_ecs_cluster.main calndr-production-cluster
 ```
 
-### Production Database
-```bash
-# Connect via bastion host (if configured)
-aws ssm start-session --target <bastion-instance-id>
+### 3. AWS Credentials Issues
 
-# Or connect directly (if security groups allow)
-psql -h <rds-endpoint> -U <username> -d <database>
+Ensure AWS credentials have sufficient permissions:
+
+```bash
+# Test AWS access
+aws sts get-caller-identity
+
+# Test ECS access
+aws ecs list-clusters --region us-east-1
 ```
 
-## Monitoring and Troubleshooting
+### 4. Cost Optimization
 
-### Health Checks
-- **Application**: `GET /health`
-- **Database**: `GET /db-info`
-- **Cache**: `GET /cache-status`
+To minimize costs:
+- Use staging environment for development
+- Consider spot instances for non-production
+- Monitor CloudWatch costs and set up billing alerts
 
-### Logs
+## Infrastructure Costs
+
+### Staging (Estimated Monthly)
+- ECS Fargate: ~$30-50
+- RDS t3.micro: ~$20
+- ElastiCache t3.micro: ~$15
+- Load Balancer: ~$20
+- **Total: ~$85-105/month**
+
+### Production (Estimated Monthly)
+- ECS Fargate: ~$100-200
+- RDS t3.small: ~$40
+- ElastiCache t3.small: ~$30
+- Load Balancer: ~$20
+- **Total: ~$190-290/month**
+
+*Costs may vary based on usage and AWS pricing changes.*
+
+## Cleanup
+
+To destroy infrastructure:
+
 ```bash
-# Local logs
-docker-compose logs -f app
+cd terraform
 
-# AWS logs
-aws logs tail /aws/ecs/calndr-backend --follow
+# For staging
+terraform workspace select staging
+terraform destroy -var-file="staging.tfvars"
 
-# Or using deployment script
-./deploy-containerized.sh logs
+# For production
+terraform workspace select production
+terraform destroy -var-file="production.tfvars"
 ```
 
-### Common Issues
+## Next Steps
 
-**Container Won't Start:**
-1. Check environment variables in `.env`
-2. Verify database connectivity
-3. Check Docker build logs
+1. **Monitor Deployments**: Check AWS Console for deployment status
+2. **Set Up DNS**: Point your domain to the load balancer
+3. **Configure SSL**: Set up SSL certificates in ACM
+4. **Set Up Monitoring**: Configure CloudWatch alarms and dashboards
+5. **Test Thoroughly**: Verify all functionality works as expected
 
-**Database Connection Issues:**
-1. Verify database credentials
-2. Check security group rules
-3. Confirm RDS instance is running
+## Support
 
-**ECS Deployment Fails:**
-1. Check CloudWatch logs
-2. Verify ECR image exists
-3. Check ECS service events
-4. Validate IAM permissions
-
-### Scaling
-
-**Manual Scaling:**
-```bash
-# Scale ECS service
-aws ecs update-service --cluster calndr-production --service calndr-backend-service --desired-count 5
-```
-
-**Auto-scaling:**
-- CPU utilization target: 70%
-- Memory utilization target: 80%
-- Min tasks: 2, Max tasks: 10
-
-## Security Considerations
-
-### Environment Variables
-- Never commit `.env` files to git
-- Use AWS Systems Manager Parameter Store for production secrets
-- Rotate secrets regularly
-
-### Network Security
-- ECS tasks run in private subnets
-- Database and Redis in dedicated subnets
-- Security groups restrict access between components
-- ALB handles SSL termination
-
-### Container Security
-- Multi-stage Docker builds minimize attack surface
-- Non-root user in containers
-- Regular vulnerability scanning with Trivy
-- Base images updated regularly
-
-## Backup and Recovery
-
-### Database Backups
-- Automated daily snapshots via RDS
-- Point-in-time recovery available
-- Cross-region backup replication (if configured)
-
-### Application Data
-- S3 bucket for file storage (if configured)
-- Redis data is cache-only (no persistence required)
-
-## Cost Optimization
-
-### Development
-- Use t3.micro instances
-- Stop services when not in use
-- Single AZ deployment
-
-### Production
-- Use reserved instances for baseline capacity
-- Auto-scaling for variable load
-- Multi-AZ for high availability
-- Consider spot instances for non-critical workloads
-
-## Support and Maintenance
-
-### Regular Tasks
-1. Monitor CloudWatch dashboards
-2. Review and act on CloudWatch alarms
-3. Update container images regularly
-4. Rotate secrets quarterly
-5. Review and update security groups
-
-### Emergency Procedures
-1. **Service Down**: Check ECS service status and CloudWatch logs
-2. **Database Issues**: Check RDS status and connectivity
-3. **High Load**: Manually scale ECS service if needed
-4. **Security Incident**: Review CloudTrail logs and rotate credentials
-
-## Getting Help
-
-- **Application Logs**: CloudWatch Logs
-- **Infrastructure**: CloudWatch Metrics and Alarms
-- **Deployment Issues**: GitHub Actions logs
-- **Database**: RDS Performance Insights
-
-For additional support, check the application documentation and CloudWatch dashboards for detailed metrics and logs. 
+If you encounter issues:
+1. Check CloudWatch logs for detailed error messages
+2. Verify AWS permissions and resource limits
+3. Review Terraform state and plan outputs
+4. Check GitHub Actions logs for deployment details 

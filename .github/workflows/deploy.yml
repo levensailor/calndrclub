@@ -1,3 +1,4 @@
+# Terraform configuration for Calndr Backend Infrastructure
 name: Deploy to AWS ECS
 
 on:
@@ -17,6 +18,7 @@ env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: calndr-backend
   CONTAINER_NAME: calndr-app
+  PROJECT_NAME: calndr
   
 
 jobs:
@@ -28,20 +30,28 @@ jobs:
     outputs:
       image-tag: ${{ steps.build.outputs.image-tag }}
       environment: ${{ steps.env.outputs.environment }}
+      cluster-name: ${{ steps.env.outputs.cluster-name }}
+      service-name: ${{ steps.env.outputs.service-name }}
     
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Determine environment
+    - name: Determine environment and infrastructure names
       id: env
       run: |
         if [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
           echo "environment=production" >> $GITHUB_OUTPUT
+          echo "cluster-name=${PROJECT_NAME}-production-cluster" >> $GITHUB_OUTPUT
+          echo "service-name=${PROJECT_NAME}-production-service" >> $GITHUB_OUTPUT
         elif [[ ${{ github.ref }} == 'refs/heads/develop' ]]; then
           echo "environment=staging" >> $GITHUB_OUTPUT
+          echo "cluster-name=${PROJECT_NAME}-staging-cluster" >> $GITHUB_OUTPUT
+          echo "service-name=${PROJECT_NAME}-staging-service" >> $GITHUB_OUTPUT
         else
           echo "environment=dev" >> $GITHUB_OUTPUT
+          echo "cluster-name=${PROJECT_NAME}-dev-cluster" >> $GITHUB_OUTPUT
+          echo "service-name=${PROJECT_NAME}-dev-service" >> $GITHUB_OUTPUT
         fi
     
     - name: Set up Python
@@ -117,28 +127,57 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
     
+    - name: Check if ECS cluster exists
+      id: check-cluster
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+      run: |
+        if aws ecs describe-clusters --clusters $CLUSTER_NAME --region ${{ env.AWS_REGION }} --query 'clusters[?status==`ACTIVE`]' --output text | grep -q $CLUSTER_NAME; then
+          echo "cluster-exists=true" >> $GITHUB_OUTPUT
+          echo "Cluster $CLUSTER_NAME exists and is active"
+        else
+          echo "cluster-exists=false" >> $GITHUB_OUTPUT
+          echo "Cluster $CLUSTER_NAME does not exist or is not active"
+        fi
+    
     - name: Deploy to ECS
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+        SERVICE_NAME: ${{ needs.test-and-build.outputs.service-name }}
       run: |
         echo "Deploying to staging environment..."
         aws ecs update-service \
-          --cluster calndr-staging-cluster \
-          --service calndr-staging-service \
+          --cluster $CLUSTER_NAME \
+          --service $SERVICE_NAME \
           --force-new-deployment \
           --region ${{ env.AWS_REGION }}
     
     - name: Wait for deployment to complete
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+        SERVICE_NAME: ${{ needs.test-and-build.outputs.service-name }}
       run: |
         echo "Waiting for deployment to complete..."
         aws ecs wait services-stable \
-          --cluster calndr-staging-cluster \
-          --services calndr-staging-service \
+          --cluster $CLUSTER_NAME \
+          --services $SERVICE_NAME \
           --region ${{ env.AWS_REGION }}
     
     - name: Run health check
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
       run: |
         echo "Running health check..."
         # Add your staging health check URL
         curl -f https://staging.calndr.club/health || exit 1
+    
+    - name: Infrastructure not deployed
+      if: steps.check-cluster.outputs.cluster-exists == 'false'
+      run: |
+        echo "::warning::ECS cluster ${{ needs.test-and-build.outputs.cluster-name }} does not exist."
+        echo "::warning::Please deploy the infrastructure using Terraform before running this workflow."
+        echo "::warning::See DEPLOYMENT_GUIDE.md for instructions."
 
   # Deploy to production
   deploy-production:
@@ -156,30 +195,52 @@ jobs:
         aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
     
+    - name: Check if ECS cluster exists
+      id: check-cluster
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+      run: |
+        if aws ecs describe-clusters --clusters $CLUSTER_NAME --region ${{ env.AWS_REGION }} --query 'clusters[?status==`ACTIVE`]' --output text | grep -q $CLUSTER_NAME; then
+          echo "cluster-exists=true" >> $GITHUB_OUTPUT
+          echo "Cluster $CLUSTER_NAME exists and is active"
+        else
+          echo "cluster-exists=false" >> $GITHUB_OUTPUT
+          echo "Cluster $CLUSTER_NAME does not exist or is not active"
+        fi
+    
     - name: Deploy to ECS
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+        SERVICE_NAME: ${{ needs.test-and-build.outputs.service-name }}
       run: |
         echo "Deploying to production environment..."
         aws ecs update-service \
-          --cluster calndr-production-cluster \
-          --service calndr-production-service \
+          --cluster $CLUSTER_NAME \
+          --service $SERVICE_NAME \
           --force-new-deployment \
           --region ${{ env.AWS_REGION }}
     
     - name: Wait for deployment to complete
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
+      env:
+        CLUSTER_NAME: ${{ needs.test-and-build.outputs.cluster-name }}
+        SERVICE_NAME: ${{ needs.test-and-build.outputs.service-name }}
       run: |
         echo "Waiting for deployment to complete..."
         aws ecs wait services-stable \
-          --cluster calndr-production-cluster \
-          --services calndr-production-service \
+          --cluster $CLUSTER_NAME \
+          --services $SERVICE_NAME \
           --region ${{ env.AWS_REGION }}
     
     - name: Run health check
+      if: steps.check-cluster.outputs.cluster-exists == 'true'
       run: |
         echo "Running health check..."
         curl -f https://calndr.club/health || exit 1
     
     - name: Create GitHub release
-      if: github.ref == 'refs/heads/main'
+      if: github.ref == 'refs/heads/main' && steps.check-cluster.outputs.cluster-exists == 'true'
       uses: actions/create-release@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -193,6 +254,13 @@ jobs:
           ${{ github.event.head_commit.message }}
         draft: false
         prerelease: false
+    
+    - name: Infrastructure not deployed
+      if: steps.check-cluster.outputs.cluster-exists == 'false'
+      run: |
+        echo "::warning::ECS cluster ${{ needs.test-and-build.outputs.cluster-name }} does not exist."
+        echo "::warning::Please deploy the infrastructure using Terraform before running this workflow."
+        echo "::warning::See DEPLOYMENT_GUIDE.md for instructions."
 
   # Cleanup old images
   cleanup:
