@@ -39,13 +39,8 @@ resource "aws_db_parameter_group" "main" {
   }
 
   parameter {
-    name  = "slow_query_log"
-    value = "1"
-  }
-
-  parameter {
-    name  = "long_query_time"
-    value = "2"
+    name  = "log_min_duration_statement"
+    value = "2000"
   }
 
   tags = {
