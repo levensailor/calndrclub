@@ -20,7 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 PYTHONPATH
-
+*.test
 # Virtual environments
 venv/
 env/
