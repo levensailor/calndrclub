@@ -2,6 +2,20 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.2] - 2025-01-26 09:29:00 EST
+
+### Fixed - Terraform Deployment Infrastructure Issues
+- **🔧 ECR Repository Import**: Successfully imported existing `calndr-backend` ECR repository into Terraform state
+- **🗄️ PostgreSQL Parameter Fix**: Fixed RDS parameter group by replacing MySQL-specific parameters with PostgreSQL equivalents
+- **📈 Database Version Update**: Updated PostgreSQL from unsupported 15.4 to supported 15.13
+- **🚀 Complete Infrastructure Deployment**: Successfully deployed staging infrastructure including:
+  - RDS PostgreSQL database with proper parameter configuration
+  - ECS service and task definition for container orchestration
+  - Auto-scaling policies for CPU and memory-based scaling
+  - CloudWatch monitoring, alarms, and dashboard
+  - ECR repository with lifecycle policies for image management
+- **⚡ Infrastructure Ready**: Staging environment now fully operational for GitHub Actions deployments
+
 ## [2.0.1] - 2024-12-30 20:40:00 EST
 
 ### Fixed - ECS Cluster Not Found Error
