@@ -2,6 +2,29 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.4] - 2025-01-26 18:00:00 EST
+
+### Added - Comprehensive Database Connection Logging
+- **🔍 Database Configuration Logging**: Added detailed logging to `backend/core/database.py` to debug connection issues
+  - Environment variable validation and logging
+  - Database URL construction and parsing validation  
+  - Step-by-step database object creation logging
+- **📊 Application Startup Logging**: Enhanced `backend/main.py` with comprehensive startup logging
+  - Environment variables debug output
+  - Database connection attempt logging with error details
+  - Redis connection logging (non-critical failures)
+  - Application shutdown logging
+- **🧪 Database Connection Test Script**: Created `backend/test_db_connection.py` for isolated database testing
+  - Standalone database connection testing without full app startup
+  - Detailed error logging and traceback information
+- **⚡ Early Logging Initialization**: Updated `backend/run.py` to initialize logging before module imports
+- **🔧 Database URL Debugging**: Added URL parsing and validation to identify malformed connection strings
+
+### Fixed - Database Connection Debugging
+- **📋 Logging Setup**: Ensured logging is initialized before any database operations
+- **🔍 Error Visibility**: Added comprehensive error logging to identify root cause of "Invalid IPv6 URL" errors
+- **⚙️ Configuration Validation**: Added validation checks for all required database environment variables
+
 ## [2.0.3] - 2025-01-26 17:30:00 EST
 
 ### Added - Complete Environment Variable Configuration for ECS
