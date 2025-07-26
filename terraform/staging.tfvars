@@ -34,8 +34,8 @@ max_capacity = 2
 target_cpu_utilization = 70
 target_memory_utilization = 80
 
-# Domain configuration for staging (no custom domain for now)
-domain_name = ""
+# Domain configuration for staging
+domain_name = "staging.calndr.club"
 alternative_domain_names = []
 
 # Monitoring

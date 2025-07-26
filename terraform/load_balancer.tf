@@ -59,8 +59,10 @@ resource "aws_lb_listener" "app_http" {
   }
 }
 
-# HTTPS Listener
+# HTTPS Listener (only if SSL is configured)
 resource "aws_lb_listener" "app" {
+  count = var.ssl_certificate_arn != "" || var.domain_name != "" ? 1 : 0
+  
   load_balancer_arn = aws_lb.main.arn
   port              = "443"
   protocol          = "HTTPS"
@@ -77,9 +79,9 @@ resource "aws_lb_listener" "app" {
   }
 }
 
-# SSL Certificate (if not provided)
+# SSL Certificate (if not provided and domain is set)
 resource "aws_acm_certificate" "main" {
-  count = var.ssl_certificate_arn == "" ? 1 : 0
+  count = var.ssl_certificate_arn == "" && var.domain_name != "" ? 1 : 0
 
   domain_name               = var.domain_name
   subject_alternative_names = var.alternative_domain_names
@@ -94,14 +96,14 @@ resource "aws_acm_certificate" "main" {
   }
 }
 
-# Route53 records for certificate validation
+# Route53 records for certificate validation  
 data "aws_route53_zone" "main" {
-  count = var.ssl_certificate_arn == "" ? 1 : 0
-  name  = var.domain_name
+  count   = var.ssl_certificate_arn == "" && var.domain_name != "" ? 1 : 0
+  zone_id = "Z05569483L9EGIDR8ALLX"
 }
 
 resource "aws_route53_record" "cert_validation" {
-  for_each = var.ssl_certificate_arn == "" ? {
+  for_each = var.ssl_certificate_arn == "" && var.domain_name != "" ? {
     for dvo in aws_acm_certificate.main[0].domain_validation_options : dvo.domain_name => {
       name   = dvo.resource_record_name
       record = dvo.resource_record_value
@@ -119,7 +121,7 @@ resource "aws_route53_record" "cert_validation" {
 
 # Certificate validation
 resource "aws_acm_certificate_validation" "main" {
-  count = var.ssl_certificate_arn == "" ? 1 : 0
+  count = var.ssl_certificate_arn == "" && var.domain_name != "" ? 1 : 0
 
   certificate_arn         = aws_acm_certificate.main[0].arn
   validation_record_fqdns = [for record in aws_route53_record.cert_validation : record.fqdn]
