@@ -16,7 +16,7 @@ async def lifespan(app: FastAPI):
     
     # Initialize Redis connection
     await redis_service.connect()
-    
+
     yield
     
     # Cleanup connections
@@ -32,7 +32,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
-    # Add middleware
+    # Add middleware#
     app.middleware("http")(request_validation_middleware)
     app.middleware("http")(bot_filter_middleware)
     app.middleware("http")(add_no_cache_headers)

@@ -66,7 +66,7 @@ resource "aws_ecs_task_definition" "app" {
   container_definitions = jsonencode([
     {
       name  = "${var.project_name}-app"
-      image = "${aws_ecr_repository.app.repository_url}:latest"
+      image = "${aws_ecr_repository.app.repository_url}:${var.environment}-latest"
 
       portMappings = [
         {
@@ -83,7 +83,7 @@ resource "aws_ecs_task_definition" "app" {
         },
         {
           name  = "DB_HOST"
-          value = aws_db_instance.main.endpoint
+          value = split(":", aws_db_instance.main.endpoint)[0]
         },
         {
           name  = "DB_PORT"
@@ -104,6 +104,42 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "AWS_REGION"
           value = var.aws_region
+        },
+        {
+          name  = "REDIS_DB"
+          value = "0"
+        },
+        {
+          name  = "REDIS_MAX_CONNECTIONS"
+          value = "20"
+        },
+        {
+          name  = "REDIS_SOCKET_TIMEOUT"
+          value = "5"
+        },
+        {
+          name  = "PROJECT_NAME"
+          value = "Calndr API"
+        },
+        {
+          name  = "VERSION"
+          value = "1.0.0"
+        },
+        {
+          name  = "DESCRIPTION"
+          value = "Family Calendar Management API"
+        },
+        {
+          name  = "API_V1_STR"
+          value = "/api/v1"
+        },
+        {
+          name  = "ALGORITHM"
+          value = "HS256"
+        },
+        {
+          name  = "ACCESS_TOKEN_EXPIRE_MINUTES"
+          value = "43200"
         }
       ]
 
