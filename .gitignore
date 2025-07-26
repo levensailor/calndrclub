@@ -28,3 +28,4 @@ __pycache__/
 .env
 AuthKey_4LZC88RV85.p8
 .env
+terraform/.terraform/providers/*
