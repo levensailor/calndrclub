@@ -1,3 +1,49 @@
+#!/bin/bash
+
+# Switch Terraform to Local Backend
+# This script modifies main.tf to use local backend instead of S3
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Logging function
+log() {
+    echo -e "${GREEN}[$(date +'%Y-%m-%d %H:%M:%S EST')] $1${NC}"
+}
+
+warn() {
+    echo -e "${YELLOW}[$(date +'%Y-%m-%d %H:%M:%S EST')] WARNING: $1${NC}"
+}
+
+error() {
+    echo -e "${RED}[$(date +'%Y-%m-%d %H:%M:%S EST')] ERROR: $1${NC}"
+}
+
+cd "$SCRIPT_DIR"
+
+# Check if main.tf exists
+if [ ! -f "main.tf" ]; then
+    error "main.tf not found in terraform directory"
+    exit 1
+fi
+
+# Create backup of original main.tf
+if [ ! -f "main-s3.tf.backup" ]; then
+    log "Creating backup of original main.tf..."
+    cp main.tf main-s3.tf.backup
+fi
+
+# Modify main.tf to use local backend
+log "Switching to local backend..."
+
+cat > main.tf << 'EOF'
 # Terraform configuration for Calndr Backend Infrastructure (Local Backend)
 # This version uses local backend instead of S3 - useful for testing or development
 terraform {
@@ -159,4 +205,24 @@ resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
-} 
+}
+EOF
+
+# Clean up any existing .terraform directory and state files
+if [ -d ".terraform" ]; then
+    warn "Removing existing .terraform directory..."
+    rm -rf .terraform
+fi
+
+if [ -f "terraform.tfstate" ]; then
+    warn "Backing up existing terraform.tfstate..."
+    mv terraform.tfstate terraform.tfstate.backup.$(date +%Y%m%d_%H%M%S)
+fi
+
+log "Successfully switched to local backend!"
+log "To switch back to S3 backend, run: ./switch-to-s3-backend.sh"
+log ""
+log "Next steps:"
+log "1. terraform init"
+log "2. terraform plan -var-file=\"staging.tfvars\""
+log "3. terraform apply -var-file=\"staging.tfvars\"" 

@@ -107,9 +107,7 @@ resource "aws_cloudwatch_dashboard" "main" {
     ]
   })
 
-  tags = {
-    Name = "${var.project_name}-${var.environment}-dashboard"
-  }
+  # Note: CloudWatch Dashboard doesn't support tags
 }
 
 # CloudWatch Alarms for Load Balancer

@@ -179,15 +179,7 @@ resource "aws_ecs_service" "app" {
     container_port   = var.container_port
   }
 
-  deployment_configuration {
-    maximum_percent         = 200
-    minimum_healthy_percent = 50
-  }
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
+  # Note: deployment_configuration will be added after initial deployment works
 
   depends_on = [
     aws_lb_listener.app,
