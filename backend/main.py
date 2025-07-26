@@ -80,9 +80,17 @@ async def lifespan(app: FastAPI):
     try:
         await redis_service.connect()
         logger.info("Redis connection successful!")
+        
+        # Test Redis connection
+        if redis_service.redis_pool:
+            logger.info("Testing Redis with ping...")
+            await redis_service.redis_pool.ping()
+            logger.info("Redis ping successful!")
+        
     except Exception as e:
         logger.error(f"Redis connection failed: {e}")
         logger.error(f"Exception type: {type(e).__name__}")
+        logger.warning("Application will continue without Redis caching")
         # Don't raise for Redis - it's not critical for basic functionality
 
     logger.info("=== APPLICATION STARTUP COMPLETE ===")

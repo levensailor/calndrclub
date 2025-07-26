@@ -2,6 +2,25 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.6] - 2025-01-26 18:30:00 EST
+
+### Fixed - Redis Library Python 3.11 Compatibility Issue
+- **🔧 Redis Library Update**: Fixed `TypeError: duplicate base class TimeoutError` in Python 3.11
+  - Replaced `aioredis>=2.0.1` with `redis>=5.0.0` which has proper Python 3.11 support
+  - Updated Redis service to use `redis.asyncio` instead of the problematic `aioredis` library
+  - Changed connection method from URL-based to parameter-based configuration
+- **🔗 Connection Method Update**: Updated Redis connection initialization in `redis_service.py`
+  - Changed from `aioredis.from_url()` to `redis.Redis(**connection_kwargs)`
+  - Updated disconnect method from `close()` to `aclose()` for async Redis client
+  - Improved connection parameter handling for password authentication
+- **🛡️ Enhanced Error Handling**: Improved Redis connection resilience in `main.py`
+  - Added Redis ping test after successful connection
+  - Enhanced logging for Redis connection status
+  - Application continues gracefully without Redis if connection fails
+
+### Root Cause Analysis
+The error `TypeError: duplicate base class TimeoutError` occurred because in Python 3.11, `asyncio.TimeoutError` became an alias for `builtins.TimeoutError`. The older `aioredis` library tried to inherit from both, causing a duplicate base class error. The newer `redis` library with async support resolves this compatibility issue.
+
 ## [2.0.5] - 2025-01-26 18:15:00 EST
 
 ### Fixed - Database URL Special Character Encoding Issue

@@ -26,5 +26,4 @@ pytz
 python-jose[cryptography]
 google-auth
 requests
-redis>=4.5.0
-aioredis>=2.0.1
+redis>=5.0.0
