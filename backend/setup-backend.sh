@@ -13,6 +13,7 @@ echo "--- Starting setup for refactored backend on the server ---"
 # 1. Install dependencies
 echo "--- Installing system packages ---"
 
+
 # Detect package manager
 if command -v dnf &> /dev/null; then
     PKG_MGR="dnf"
