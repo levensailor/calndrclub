@@ -2,6 +2,16 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.13] - 2024-12-20 16:45:00 EST
+
+### Added - Multi-Format Architecture Diagrams  
+- **📐 Multiple Diagram Formats**: Created architecture diagrams in formats compatible with major diagramming tools
+  - Draw.io XML format with proper colors, layout, and component relationships
+  - Graphviz DOT format for PDF, SVG, and PNG export capabilities
+  - Simple text format for manual diagram creation in any tool
+  - Automated script to generate multiple formats from DOT source
+  - Comprehensive usage guide with tool-specific instructions
+
 ## [2.0.12] - 2024-12-20 16:30:00 EST
 
 ### Added - Comprehensive Architecture Documentation

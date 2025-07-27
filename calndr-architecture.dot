@@ -1,0 +1,240 @@
+digraph CalndrArchitecture {
+    // Graph attributes
+    graph [
+        label="Calndr Backend Architecture - Staging & Production"
+        labelloc="t"
+        fontsize=20
+        fontname="Arial Bold"
+        rankdir=TB
+        compound=true
+        bgcolor=white
+        margin=0.5
+    ]
+    
+    // Node defaults
+    node [
+        shape=box
+        style=filled
+        fontname="Arial"
+        fontsize=10
+        margin=0.3
+    ]
+    
+    // Edge defaults
+    edge [
+        fontname="Arial"
+        fontsize=8
+        color=gray40
+    ]
+    
+    // External Users & Services
+    subgraph cluster_external {
+        label="External Users & Services"
+        style=filled
+        color=lightblue
+        fontsize=12
+        fontname="Arial Bold"
+        
+        users [label="👥 Users" fillcolor=lightyellow]
+        ios_app [label="📱 iOS App" fillcolor=lightyellow]
+        web_app [label="🌐 Web App" fillcolor=lightyellow]
+        github [label="🔧 GitHub Actions" fillcolor=lightgreen]
+        google_api [label="🗺️ Google Places API" fillcolor=lightgreen]
+        auth_apis [label="🔐 Auth APIs\n(Apple, Google, Facebook)" fillcolor=lightgreen]
+        
+        {rank=same; users; ios_app; web_app}
+        {rank=same; github; google_api; auth_apis}
+    }
+    
+    // Global AWS Services
+    subgraph cluster_global {
+        label="Global AWS Services"
+        style=filled
+        color=lavender
+        fontsize=12
+        fontname="Arial Bold"
+        
+        route53 [label="🌐 Route 53\nDNS" fillcolor=plum]
+        acm [label="🔐 ACM\nSSL Certificates" fillcolor=plum]
+        
+        {rank=same; route53; acm}
+    }
+    
+    // Production Environment
+    subgraph cluster_production {
+        label="Production Environment - VPC (10.0.0.0/16)"
+        style=filled
+        color=lightgreen
+        fontsize=14
+        fontname="Arial Bold"
+        
+        // Production Public Subnets
+        subgraph cluster_prod_public {
+            label="Public Subnets (10.0.1.0/24, 10.0.2.0/24)"
+            style=filled
+            color=lightyellow
+            fontsize=10
+            
+            prod_alb [label="⚖️ Production ALB\nLoad Balancer" fillcolor=gold]
+            prod_nat [label="🌐 NAT Gateways\n(2 AZs)" fillcolor=gold]
+            prod_target [label="🎯 Target Group\nHealth Checks" fillcolor=lightcyan]
+            
+            {rank=same; prod_alb; prod_nat}
+        }
+        
+        // Production Private Subnets
+        subgraph cluster_prod_private {
+            label="Private Subnets (10.0.3.0/24, 10.0.4.0/24)"
+            style=filled
+            color=lightblue
+            fontsize=10
+            
+            prod_ecs [label="🐳 Production ECS\nFargate Cluster\n(Multi-AZ)" fillcolor=skyblue]
+            prod_redis [label="📦 Redis ElastiCache\n(Multi-AZ, Auth)" fillcolor=skyblue]
+            prod_asg [label="📈 Auto Scaling\nCPU/Memory based" fillcolor=lightcyan]
+            
+            {rank=same; prod_ecs; prod_redis}
+        }
+        
+        // Production Database Subnets
+        subgraph cluster_prod_db {
+            label="Database Subnets (10.0.5.0/24, 10.0.6.0/24)"
+            style=filled
+            color=mistyrose
+            fontsize=10
+            
+            prod_rds [label="🗄️ RDS PostgreSQL\nPrimary (Multi-AZ)" fillcolor=pink]
+            prod_replica [label="🗄️ Read Replica\nPerformance" fillcolor=pink]
+            
+            {rank=same; prod_rds; prod_replica}
+        }
+    }
+    
+    // Staging Environment
+    subgraph cluster_staging {
+        label="Staging Environment - VPC (10.1.0.0/16)"
+        style=filled
+        color=wheat
+        fontsize=14
+        fontname="Arial Bold"
+        
+        // Staging Public Subnets
+        subgraph cluster_staging_public {
+            label="Public Subnets (10.1.1.0/24, 10.1.2.0/24)"
+            style=filled
+            color=lightyellow
+            fontsize=10
+            
+            staging_alb [label="⚖️ Staging ALB\nLoad Balancer" fillcolor=gold]
+            staging_nat [label="🌐 NAT Gateways\n(2 AZs)" fillcolor=gold]
+            staging_target [label="🎯 Target Group\nHealth Checks" fillcolor=lightcyan]
+            
+            {rank=same; staging_alb; staging_nat}
+        }
+        
+        // Staging Private Subnets
+        subgraph cluster_staging_private {
+            label="Private Subnets (10.1.3.0/24, 10.1.4.0/24)"
+            style=filled
+            color=lightblue
+            fontsize=10
+            
+            staging_ecs [label="🐳 Staging ECS\nFargate Cluster" fillcolor=skyblue]
+            staging_redis [label="📦 Redis ElastiCache\n(Single Node)" fillcolor=skyblue]
+            staging_asg [label="📈 Auto Scaling\nBasic configuration" fillcolor=lightcyan]
+            
+            {rank=same; staging_ecs; staging_redis}
+        }
+        
+        // Staging Database Subnets
+        subgraph cluster_staging_db {
+            label="Database Subnets (10.1.5.0/24, 10.1.6.0/24)"
+            style=filled
+            color=mistyrose
+            fontsize=10
+            
+            staging_rds [label="🗄️ RDS PostgreSQL\nSingle AZ" fillcolor=pink]
+        }
+    }
+    
+    // Shared AWS Services
+    subgraph cluster_shared {
+        label="Shared AWS Services"
+        style=filled
+        color=lavender
+        fontsize=12
+        fontname="Arial Bold"
+        
+        ecr [label="📦 ECR\nContainer Registry" fillcolor=plum]
+        cloudwatch [label="📊 CloudWatch\nLogs & Metrics" fillcolor=plum]
+        sns [label="📧 SNS\nEmail Alerts" fillcolor=plum]
+        ssm [label="🔐 SSM\nParameter Store" fillcolor=plum]
+        iam [label="👤 IAM\nRoles & Policies" fillcolor=plum]
+        s3 [label="🪣 S3\nStorage & State" fillcolor=plum]
+        
+        {rank=same; ecr; cloudwatch; sns}
+        {rank=same; ssm; iam; s3}
+    }
+    
+    // User connections
+    users -> route53 [label="HTTPS"]
+    ios_app -> route53 [label="API Calls"]
+    web_app -> route53 [label="HTTPS"]
+    
+    // DNS routing
+    route53 -> prod_alb [label="api.calndr.club"]
+    route53 -> staging_alb [label="staging-api.calndr.club"]
+    
+    // SSL certificates
+    acm -> prod_alb [label="SSL Termination"]
+    acm -> staging_alb [label="SSL Termination"]
+    
+    // Production data flow
+    prod_alb -> prod_target [label="Health Checks"]
+    prod_target -> prod_ecs [label="HTTP:8000"]
+    prod_ecs -> prod_rds [label="PostgreSQL:5432"]
+    prod_ecs -> prod_redis [label="Redis:6379"]
+    prod_rds -> prod_replica [label="Replication"]
+    prod_asg -> prod_ecs [label="Scale Tasks"]
+    
+    // Staging data flow
+    staging_alb -> staging_target [label="Health Checks"]
+    staging_target -> staging_ecs [label="HTTP:8000"]
+    staging_ecs -> staging_rds [label="PostgreSQL:5432"]
+    staging_ecs -> staging_redis [label="Redis:6379"]
+    staging_asg -> staging_ecs [label="Scale Tasks"]
+    
+    // Container registry
+    github -> ecr [label="Push Images"]
+    ecr -> prod_ecs [label="Pull Images"]
+    ecr -> staging_ecs [label="Pull Images"]
+    
+    // External API connections (dotted lines for external)
+    prod_ecs -> google_api [style=dotted label="API Calls"]
+    prod_ecs -> auth_apis [style=dotted label="OAuth"]
+    staging_ecs -> google_api [style=dotted label="API Calls"]
+    staging_ecs -> auth_apis [style=dotted label="OAuth"]
+    
+    // Monitoring connections
+    prod_ecs -> cloudwatch [label="Logs"]
+    staging_ecs -> cloudwatch [label="Logs"]
+    prod_rds -> cloudwatch [label="Metrics"]
+    staging_rds -> cloudwatch [label="Metrics"]
+    cloudwatch -> sns [label="Alarms"]
+    
+    // Configuration
+    ssm -> prod_ecs [label="Secrets"]
+    ssm -> staging_ecs [label="Secrets"]
+    iam -> prod_ecs [label="Permissions"]
+    iam -> staging_ecs [label="Permissions"]
+    s3 -> prod_ecs [label="Assets"]
+    s3 -> staging_ecs [label="Assets"]
+    
+    // Ranking for better layout
+    {rank=min; users; ios_app; web_app}
+    {rank=same; route53; acm}
+    {rank=same; prod_alb; staging_alb}
+    {rank=same; prod_ecs; staging_ecs}
+    {rank=same; prod_rds; staging_rds}
+    {rank=max; ecr; cloudwatch; sns; ssm; iam; s3}
+} 

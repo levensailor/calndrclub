@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" modified="2024-12-20T21:30:00.000Z" agent="Claude" etag="architecture-v1" version="22.1.11">
+  <diagram name="Calndr Architecture" id="architecture">
+    <mxGraphModel dx="2066" dy="1129" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+        
+        <!-- Title -->
+        <mxCell id="title" value="Calndr Backend Architecture - Staging &amp; Production" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=24;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="627" y="20" width="400" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- External Users Section -->
+        <mxCell id="external-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0288D1;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="40" y="80" width="300" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="external-label" value="External Users &amp; Services" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="140" y="90" width="100" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Users -->
+        <mxCell id="users" value="👥 Users" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00" vertex="1" parent="1">
+          <mxGeometry x="60" y="130" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="ios-app" value="📱 iOS App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00" vertex="1" parent="1">
+          <mxGeometry x="150" y="130" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="web-app" value="🌐 Web App" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#F57C00" vertex="1" parent="1">
+          <mxGeometry x="240" y="130" width="80" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- External APIs -->
+        <mxCell id="github" value="🔧 GitHub Actions" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#4CAF50" vertex="1" parent="1">
+          <mxGeometry x="60" y="180" width="100" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="google-api" value="🗺️ Google Places" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#4CAF50" vertex="1" parent="1">
+          <mxGeometry x="170" y="180" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="auth-apis" value="🔐 Auth APIs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#4CAF50" vertex="1" parent="1">
+          <mxGeometry x="260" y="180" width="70" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Route 53 and ACM -->
+        <mxCell id="route53" value="🌐 Route 53&#xa;DNS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#9C27B0" vertex="1" parent="1">
+          <mxGeometry x="400" y="140" width="80" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="acm" value="🔐 ACM&#xa;SSL Certificates" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#9C27B0" vertex="1" parent="1">
+          <mxGeometry x="520" y="140" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Environment -->
+        <mxCell id="prod-vpc" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#2E7D32;strokeWidth=3" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="760" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-label" value="Production Environment - VPC (10.0.0.0/16)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#2E7D32" vertex="1" parent="1">
+          <mxGeometry x="60" y="330" width="300" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Public Subnets -->
+        <mxCell id="prod-public" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17" vertex="1" parent="1">
+          <mxGeometry x="60" y="370" width="220" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-public-label" value="Public Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="150" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-alb" value="⚖️ Production ALB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#FF8F00" vertex="1" parent="1">
+          <mxGeometry x="80" y="400" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-nat" value="🌐 NAT Gateways" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#FF8F00" vertex="1" parent="1">
+          <mxGeometry x="180" y="400" width="80" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Private Subnets -->
+        <mxCell id="prod-private" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2" vertex="1" parent="1">
+          <mxGeometry x="300" y="370" width="220" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-private-label" value="Private Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="390" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-ecs" value="🐳 Production ECS&#xa;Fargate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="320" y="400" width="80" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-redis" value="📦 Redis&#xa;ElastiCache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="420" y="400" width="80" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Database Subnets -->
+        <mxCell id="prod-db" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B" vertex="1" parent="1">
+          <mxGeometry x="540" y="370" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-db-label" value="Database Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="630" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-rds" value="🗄️ RDS PostgreSQL&#xa;Primary" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD9;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="560" y="400" width="90" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-replica" value="🗄️ Read&#xa;Replica" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD9;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="670" y="400" width="80" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production Additional Services -->
+        <mxCell id="prod-target" value="🎯 Target Group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#00695C" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="prod-asg" value="📈 Auto Scaling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#00695C" vertex="1" parent="1">
+          <mxGeometry x="320" y="490" width="80" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Environment -->
+        <mxCell id="staging-vpc" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100;strokeWidth=3" vertex="1" parent="1">
+          <mxGeometry x="860" y="320" width="760" height="380" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-label" value="Staging Environment - VPC (10.1.0.0/16)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#E65100" vertex="1" parent="1">
+          <mxGeometry x="880" y="330" width="300" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Public Subnets -->
+        <mxCell id="staging-public" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17" vertex="1" parent="1">
+          <mxGeometry x="880" y="370" width="220" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-public-label" value="Public Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="970" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-alb" value="⚖️ Staging ALB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#FF8F00" vertex="1" parent="1">
+          <mxGeometry x="900" y="400" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-nat" value="🌐 NAT Gateways" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFECB3;strokeColor=#FF8F00" vertex="1" parent="1">
+          <mxGeometry x="1000" y="400" width="80" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Private Subnets -->
+        <mxCell id="staging-private" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2" vertex="1" parent="1">
+          <mxGeometry x="1120" y="370" width="220" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-private-label" value="Private Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1210" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-ecs" value="🐳 Staging ECS&#xa;Fargate" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="1140" y="400" width="80" height="40" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-redis" value="📦 Redis&#xa;ElastiCache" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#BBDEFB;strokeColor=#1565C0" vertex="1" parent="1">
+          <mxGeometry x="1240" y="400" width="80" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Database Subnets -->
+        <mxCell id="staging-db" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B" vertex="1" parent="1">
+          <mxGeometry x="1360" y="370" width="240" height="100" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-db-label" value="Database Subnets" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=12;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="1450" y="375" width="100" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-rds" value="🗄️ RDS PostgreSQL&#xa;Single AZ" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F8BBD9;strokeColor=#AD1457" vertex="1" parent="1">
+          <mxGeometry x="1380" y="400" width="90" height="40" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging Additional Services -->
+        <mxCell id="staging-target" value="🎯 Target Group" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#00695C" vertex="1" parent="1">
+          <mxGeometry x="900" y="490" width="80" height="30" as="geometry"/>
+        </mxCell>
+        <mxCell id="staging-asg" value="📈 Auto Scaling" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E0F2F1;strokeColor=#00695C" vertex="1" parent="1">
+          <mxGeometry x="1140" y="490" width="80" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- Shared Services -->
+        <mxCell id="shared-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2;strokeWidth=2" vertex="1" parent="1">
+          <mxGeometry x="40" y="740" width="1580" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="shared-label" value="Shared AWS Services" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=16;fontStyle=1;fontColor=#7B1FA2" vertex="1" parent="1">
+          <mxGeometry x="60" y="750" width="200" height="30" as="geometry"/>
+        </mxCell>
+        
+        <!-- ECR -->
+        <mxCell id="ecr" value="📦 ECR&#xa;Container Registry" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="80" y="790" width="100" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Monitoring -->
+        <mxCell id="cloudwatch" value="📊 CloudWatch&#xa;Logs &amp; Metrics" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="220" y="790" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="sns" value="📧 SNS&#xa;Alerts" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="360" y="790" width="80" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Security -->
+        <mxCell id="ssm" value="🔐 SSM&#xa;Parameter Store" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="480" y="790" width="100" height="50" as="geometry"/>
+        </mxCell>
+        <mxCell id="iam" value="👤 IAM&#xa;Roles" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="620" y="790" width="80" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Storage -->
+        <mxCell id="s3" value="🪣 S3&#xa;Storage" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="740" y="790" width="80" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Infrastructure -->
+        <mxCell id="terraform" value="🏗️ Terraform&#xa;State S3+DynamoDB" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1BEE7;strokeColor=#8E24AA" vertex="1" parent="1">
+          <mxGeometry x="860" y="790" width="120" height="50" as="geometry"/>
+        </mxCell>
+        
+        <!-- Connections -->
+        <!-- Users to Route53 -->
+        <mxCell id="edge1" edge="1" parent="1" source="users" target="route53">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge2" edge="1" parent="1" source="ios-app" target="route53">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge3" edge="1" parent="1" source="web-app" target="route53">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Route53 to ALBs -->
+        <mxCell id="edge4" edge="1" parent="1" source="route53" target="prod-alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge5" edge="1" parent="1" source="route53" target="staging-alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- ACM to ALBs -->
+        <mxCell id="edge6" edge="1" parent="1" source="acm" target="prod-alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge7" edge="1" parent="1" source="acm" target="staging-alb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Production flow -->
+        <mxCell id="edge8" edge="1" parent="1" source="prod-alb" target="prod-ecs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge9" edge="1" parent="1" source="prod-ecs" target="prod-rds">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge10" edge="1" parent="1" source="prod-ecs" target="prod-redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge11" edge="1" parent="1" source="prod-rds" target="prod-replica">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Staging flow -->
+        <mxCell id="edge12" edge="1" parent="1" source="staging-alb" target="staging-ecs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge13" edge="1" parent="1" source="staging-ecs" target="staging-rds">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge14" edge="1" parent="1" source="staging-ecs" target="staging-redis">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- ECR to ECS -->
+        <mxCell id="edge15" edge="1" parent="1" source="ecr" target="prod-ecs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="edge16" edge="1" parent="1" source="ecr" target="staging-ecs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- GitHub to ECR -->
+        <mxCell id="edge17" edge="1" parent="1" source="github" target="ecr">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        
+        <!-- Legend -->
+        <mxCell id="legend-bg" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#BDBDBD" vertex="1" parent="1">
+          <mxGeometry x="40" y="970" width="400" height="120" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-title" value="Legend" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=14;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="200" y="980" width="80" height="20" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="legend-prod" value="Production Environment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F5E8;strokeColor=#2E7D32" vertex="1" parent="1">
+          <mxGeometry x="60" y="1010" width="120" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-staging" value="Staging Environment" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF3E0;strokeColor=#E65100" vertex="1" parent="1">
+          <mxGeometry x="200" y="1010" width="120" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-shared" value="Shared Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F3E5F5;strokeColor=#7B1FA2" vertex="1" parent="1">
+          <mxGeometry x="340" y="1010" width="80" height="25" as="geometry"/>
+        </mxCell>
+        
+        <mxCell id="legend-public" value="Public Subnets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF9C4;strokeColor=#F57F17" vertex="1" parent="1">
+          <mxGeometry x="60" y="1050" width="80" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-private" value="Private Subnets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E3F2FD;strokeColor=#1976D2" vertex="1" parent="1">
+          <mxGeometry x="160" y="1050" width="80" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-database" value="Database Subnets" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FCE4EC;strokeColor=#C2185B" vertex="1" parent="1">
+          <mxGeometry x="260" y="1050" width="90" height="25" as="geometry"/>
+        </mxCell>
+        <mxCell id="legend-external" value="External Services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E1F5FE;strokeColor=#0288D1" vertex="1" parent="1">
+          <mxGeometry x="370" y="1050" width="80" height="25" as="geometry"/>
+        </mxCell>
+        
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile> 
