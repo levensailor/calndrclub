@@ -153,6 +153,26 @@ resource "aws_route_table" "private" {
   }
 }
 
+# Database Route Tables - These were missing!
+resource "aws_route_table" "database" {
+  count  = length(var.database_subnet_cidrs)
+  vpc_id = aws_vpc.main.id
+
+  # Optionally add internet access through NAT gateway for maintenance
+  dynamic "route" {
+    for_each = var.enable_database_internet_access ? [1] : []
+    content {
+      cidr_block     = "0.0.0.0/0"
+      nat_gateway_id = aws_nat_gateway.main[count.index % length(aws_nat_gateway.main)].id
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-${var.environment}-db-rt-${count.index + 1}"
+    Type = "Database"
+  }
+}
+
 # Route Table Associations
 resource "aws_route_table_association" "public" {
   count          = length(aws_subnet.public)
@@ -164,4 +184,11 @@ resource "aws_route_table_association" "private" {
   count          = length(aws_subnet.private)
   subnet_id      = aws_subnet.private[count.index].id
   route_table_id = aws_route_table.private[count.index].id
+}
+
+# Database Route Table Associations - These were missing!
+resource "aws_route_table_association" "database" {
+  count          = length(aws_subnet.database)
+  subnet_id      = aws_subnet.database[count.index].id
+  route_table_id = aws_route_table.database[count.index].id
 } 

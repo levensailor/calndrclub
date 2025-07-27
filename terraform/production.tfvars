@@ -45,6 +45,9 @@ db_allocated_storage = 100
 db_max_allocated_storage = 500
 db_backup_retention_period = 30
 
+# Disable database internet access for production security
+enable_database_internet_access = false
+
 # Redis configuration - production sized
 redis_node_type = "cache.t3.small"
 

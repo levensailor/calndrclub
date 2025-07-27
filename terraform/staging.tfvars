@@ -45,6 +45,9 @@ db_allocated_storage = 20
 db_max_allocated_storage = 50
 db_backup_retention_period = 3
 
+# Enable database internet access for staging maintenance
+enable_database_internet_access = true
+
 # Redis configuration - smaller for staging
 redis_node_type = "cache.t3.micro"
 

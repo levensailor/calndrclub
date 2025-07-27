@@ -1,23 +1,37 @@
-# Outputs for the Calndr Backend Infrastructure
-
+# VPC and Network outputs
 output "vpc_id" {
-  description = "The VPC ID"
+  description = "VPC ID"
   value       = aws_vpc.main.id
 }
 
 output "public_subnet_ids" {
-  description = "The public subnet IDs"
+  description = "Public subnet IDs"
   value       = aws_subnet.public[*].id
 }
 
 output "private_subnet_ids" {
-  description = "The private subnet IDs"
+  description = "Private subnet IDs"
   value       = aws_subnet.private[*].id
 }
 
 output "database_subnet_ids" {
-  description = "The database subnet IDs"
+  description = "Database subnet IDs"
   value       = aws_subnet.database[*].id
+}
+
+output "internet_gateway_id" {
+  description = "Internet Gateway ID"
+  value       = aws_internet_gateway.main.id
+}
+
+output "nat_gateway_ids" {
+  description = "NAT Gateway IDs"
+  value       = aws_nat_gateway.main[*].id
+}
+
+output "database_route_table_ids" {
+  description = "Database route table IDs"
+  value       = aws_route_table.database[*].id
 }
 
 output "load_balancer_dns" {

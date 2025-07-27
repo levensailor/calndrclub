@@ -2,6 +2,34 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.7] - 2025-01-26 18:45:00 EST
+
+### Fixed - Database Subnet Routing Infrastructure
+- **🛣️ Database Route Tables**: Fixed missing route tables and associations for database subnets
+  - Added `aws_route_table.database` resources for proper subnet routing
+  - Added `aws_route_table_association.database` to connect database subnets to route tables
+  - Database subnets were previously using default VPC route table causing connectivity issues
+- **⚙️ Configurable Database Internet Access**: Added optional internet access for database maintenance
+  - New variable `enable_database_internet_access` to control NAT gateway routing
+  - Staging environment: Enabled for maintenance access (`enable_database_internet_access = true`)
+  - Production environment: Disabled for security (`enable_database_internet_access = false`)
+- **📊 Enhanced Network Outputs**: Added comprehensive network infrastructure outputs
+  - Internet Gateway ID, NAT Gateway IDs, Database Route Table IDs
+  - Improved debugging and validation capabilities
+- **🔧 Database Routing Fix Script**: Created `fix-database-routing.sh` for easy deployment
+  - Targeted Terraform apply for database routing resources only
+  - Interactive script with confirmation and environment selection
+  - Clear instructions for next steps after applying fixes
+
+### Root Cause Analysis
+The RDS database was deployed in database subnets that lacked proper route tables and associations. Without explicit route tables, the database subnets were using the default VPC route table, which doesn't have the necessary routing configuration for proper connectivity between ECS tasks in private subnets and the database in database subnets.
+
+### Infrastructure Impact
+- **Database Connectivity**: ECS tasks in private subnets can now properly reach RDS database
+- **Security**: Production database subnets remain isolated without internet access
+- **Maintenance**: Staging environment allows controlled internet access for maintenance operations
+- **Network Isolation**: Proper subnet segregation between public, private, and database tiers
+
 ## [2.0.6] - 2025-01-26 18:30:00 EST
 
 ### Fixed - Redis Library Python 3.11 Compatibility Issue

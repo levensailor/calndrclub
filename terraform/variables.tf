@@ -152,6 +152,12 @@ variable "db_maintenance_window" {
   default     = "sun:04:00-sun:05:00"
 }
 
+variable "enable_database_internet_access" {
+  description = "Enable internet access for database subnets through NAT gateway (for maintenance)"
+  type        = bool
+  default     = false
+}
+
 # Redis Configuration
 variable "redis_node_type" {
   description = "ElastiCache Redis node type"
