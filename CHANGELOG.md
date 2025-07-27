@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.8] - 2024-12-20 15:15:00 EST
+
+### Added - Comprehensive ECS Log Viewing Scripts
+- **📊 Log Viewing Scripts**: Created comprehensive toolset for easier ECS log troubleshooting
+  - Added `scripts/view-logs.sh` - Full-featured log viewer with streaming, searching, and filtering
+  - Added `scripts/quick-logs.sh` - Quick access commands for common log viewing tasks  
+  - Added `scripts/cloudwatch-insights.sh` - Advanced log analysis using CloudWatch Insights
+  - Added `scripts/log-aliases.sh` - Convenient shell aliases for instant log access
+  - Support for both staging and production environments
+  - Features include live log streaming, error searching, service status checking, and performance analysis
+  - All scripts use EST timestamps and colored output for better user experience
+
 ## [2.0.7] - 2025-01-26 18:45:00 EST
 
 ### Fixed - Database Subnet Routing Infrastructure
