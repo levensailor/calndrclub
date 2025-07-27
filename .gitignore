@@ -29,3 +29,10 @@ __pycache__/
 AuthKey_4LZC88RV85.p8
 .env
 terraform/.terraform/providers/*
+
+# Sensitive files
+*.pem
+*.p8
+
+# SSM Parameter setup scripts with actual credentials
+scripts/setup-ssm-parameters.sh
