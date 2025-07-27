@@ -173,7 +173,7 @@ resource "aws_ecs_task_definition" "app" {
         },
         {
           name  = "SMTP_PORT"
-          value = tostring(var.smtp_port)
+          value = "25"
         },
         # Apple Sign-In (non-sensitive values)
         {
@@ -191,6 +191,23 @@ resource "aws_ecs_task_definition" "app" {
         {
           name  = "APPLE_REDIRECT_URI"
           value = var.apple_redirect_uri
+        },
+        # APNS Configuration (Apple Push Notification Service)
+        {
+          name  = "APNS_CERT_PATH"
+          value = "/var/www/cal-app/AuthKey_RZ6KL226Z5.p8"
+        },
+        {
+          name  = "APNS_KEY_ID"
+          value = var.apple_key_id
+        },
+        {
+          name  = "APNS_TEAM_ID"
+          value = var.apple_team_id
+        },
+        {
+          name  = "APNS_TOPIC"
+          value = var.apple_client_id
         },
         # Google Sign-In (non-sensitive values)
         {

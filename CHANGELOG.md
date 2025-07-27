@@ -2,6 +2,22 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.9] - 2024-12-20 15:30:00 EST
+
+### Updated - Complete ECS Environment Variables Configuration
+- **🔧 Environment Variables**: Updated ECS task definition with all required environment variables
+  - Added missing APNS configuration variables (APNS_CERT_PATH, APNS_KEY_ID, APNS_TEAM_ID, APNS_TOPIC)
+  - Updated SMTP_PORT from 587 to 25 as requested
+  - Configured all database variables (DB_USER, DB_PASSWORD, DB_NAME, DB_HOST, DB_PORT)
+  - Added all Apple Sign-In variables (APPLE_CLIENT_ID, APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_REDIRECT_URI, APPLE_PRIVATE_KEY)
+  - Configured AWS credentials and S3 bucket settings
+  - Added Google Places API and SNS platform application ARN
+  - Updated both staging and production terraform variables
+- **✅ Verification Script**: Created `scripts/verify-env-vars.sh` to validate environment configuration
+  - Comprehensive checking of all required environment variables and secrets
+  - Support for staging and production environment verification
+  - Color-coded output showing configuration status
+
 ## [2.0.8] - 2024-12-20 15:15:00 EST
 
 ### Added - Comprehensive ECS Log Viewing Scripts
