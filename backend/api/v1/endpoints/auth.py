@@ -225,20 +225,28 @@ async def google_login():
 @router.post("/google/callback", response_model=Token)
 async def google_callback(request: Request):
     form = await request.form()
-    id_token = form.get("id_token")
+    id_token_value = form.get("id_token")
+    
+    if not id_token_value:
+        raise HTTPException(status_code=400, detail="id_token is missing")
     
     logger.info(f"Received Google ID token")
     
     try:
-        user_info = await google_get_user_info(id_token)
-        logger.info(f"Received user info from Google: {user_info}")
-    except Exception as e:
-        logger.error(f"Error getting Google user info: {e}")
-        raise HTTPException(status_code=500, detail="Error getting Google user info")
+        # Verify the ID token directly (same as ios-login endpoint)
+        idinfo = id_token.verify_oauth2_token(id_token_value, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        logger.info(f"Received user info from Google ID token: {idinfo}")
+        
+        email = idinfo.get("email")
+        if not email:
+            raise HTTPException(status_code=400, detail="Email not found in Google token")
 
-    email      = user_info.get("email")
-    first_name = user_info.get("given_name", "Google")
-    last_name  = user_info.get("family_name", "User")
+        first_name = idinfo.get("given_name", "Google")
+        last_name = idinfo.get("family_name", "User")
+        
+    except Exception as e:
+        logger.error(f"Google callback failed during token verification: {e}")
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
 
     # 1) Lookup existing user by email
     query = users.select().where(users.c.email == email)

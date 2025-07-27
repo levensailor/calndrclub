@@ -32,6 +32,7 @@ apple_private_key = ""  # Stored in SSM: /calndr/staging/apple_private_key
 apple_redirect_uri = "https://staging.calndr.club/api/v1/auth/apple/callback"
 
 # Google Sign-In Configuration
+# IMPORTANT: Replace with your NEW Web Application Client ID (not the iOS one)  
 google_client_id = "427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com"
 google_client_secret = ""
 google_redirect_uri = "https://staging.calndr.club/auth/google/callback"
