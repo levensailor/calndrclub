@@ -2,6 +2,16 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.12] - 2024-12-20 16:30:00 EST
+
+### Added - Comprehensive Architecture Documentation
+- **🏗️ Architecture Diagrams**: Created complete architecture documentation for both staging and production environments
+  - CSV file for Lucidchart import with all AWS components and relationships
+  - Visual Mermaid diagram showing ECS, RDS, Redis, ALB, and external integrations
+  - Comprehensive architecture overview document with security, monitoring, and cost optimization details
+  - Network topology documentation with subnet architecture and security groups
+  - Data flow diagrams and deployment process documentation
+
 ## [2.0.11] - 2024-12-20 16:15:00 EST
 
 ### Enhanced - Backend Logging System for Better Troubleshooting

@@ -1,0 +1,57 @@
+Name,Type,Environment,AWS Service,Subnet,Security Group,Connects To,Description,IP Range
+Internet Gateway,Network,Both,IGW,,,"Public Subnets, Users",Internet access for public resources,0.0.0.0/0
+Production VPC,Network,Production,VPC,,,All Production Components,Main VPC for production environment,10.0.0.0/16
+Staging VPC,Network,Staging,VPC,,,All Staging Components,Main VPC for staging environment,10.1.0.0/16
+Production Public Subnet 1,Network,Production,Subnet,Public,,"ALB, NAT Gateway 1",Public subnet for load balancer,10.0.1.0/24
+Production Public Subnet 2,Network,Production,Subnet,Public,,"ALB, NAT Gateway 2",Public subnet for load balancer,10.0.2.0/24
+Production Private Subnet 1,Network,Production,Subnet,Private,ECS Tasks SG,"ECS Tasks, Redis",Private subnet for application,10.0.3.0/24
+Production Private Subnet 2,Network,Production,Subnet,Private,ECS Tasks SG,"ECS Tasks, Redis",Private subnet for application,10.0.4.0/24
+Production Database Subnet 1,Network,Production,Subnet,Database,RDS SG,RDS Database,Database subnet for RDS,10.0.5.0/24
+Production Database Subnet 2,Network,Production,Subnet,Database,RDS SG,RDS Database,Database subnet for RDS,10.0.6.0/24
+Staging Public Subnet 1,Network,Staging,Subnet,Public,,"ALB, NAT Gateway 1",Public subnet for load balancer,10.1.1.0/24
+Staging Public Subnet 2,Network,Staging,Subnet,Public,,"ALB, NAT Gateway 2",Public subnet for load balancer,10.1.2.0/24
+Staging Private Subnet 1,Network,Staging,Subnet,Private,ECS Tasks SG,"ECS Tasks, Redis",Private subnet for application,10.1.3.0/24
+Staging Private Subnet 2,Network,Staging,Subnet,Private,ECS Tasks SG,"ECS Tasks, Redis",Private subnet for application,10.1.4.0/24
+Staging Database Subnet 1,Network,Staging,Subnet,Database,RDS SG,RDS Database,Database subnet for RDS,10.1.5.0/24
+Staging Database Subnet 2,Network,Staging,Subnet,Database,RDS SG,RDS Database,Database subnet for RDS,10.1.6.0/24
+Production ALB,Load Balancer,Production,Application Load Balancer,Public,ALB SG,"Production ECS Service, Route53",Application Load Balancer for production,
+Staging ALB,Load Balancer,Staging,Application Load Balancer,Public,ALB SG,"Staging ECS Service, Route53",Application Load Balancer for staging,
+Production ECS Cluster,Container,Production,ECS Fargate,,,"Production ECS Service, CloudWatch",ECS cluster for production containers,
+Staging ECS Cluster,Container,Staging,ECS Fargate,,,"Staging ECS Service, CloudWatch",ECS cluster for staging containers,
+Production ECS Service,Container,Production,ECS Service,Private,ECS Tasks SG,"Production RDS, Production Redis, Production ALB",ECS service running FastAPI backend,
+Staging ECS Service,Container,Staging,ECS Service,Private,ECS Tasks SG,"Staging RDS, Staging Redis, Staging ALB",ECS service running FastAPI backend,
+Production RDS,Database,Production,RDS PostgreSQL,Database,RDS SG,"Production ECS Service, CloudWatch",PostgreSQL database for production,
+Staging RDS,Database,Staging,RDS PostgreSQL,Database,RDS SG,"Staging ECS Service, CloudWatch",PostgreSQL database for staging,
+Production RDS Read Replica,Database,Production,RDS PostgreSQL,Database,RDS SG,"Production ECS Service, CloudWatch",Read replica for production database,
+Production Redis,Cache,Production,ElastiCache Redis,Private,Redis SG,"Production ECS Service, CloudWatch",Redis cache for production,
+Staging Redis,Cache,Staging,ElastiCache Redis,Private,Redis SG,"Staging ECS Service, CloudWatch",Redis cache for staging,
+ECR Repository,Registry,Both,Elastic Container Registry,,,Both ECS Services,Container image repository,
+Route53,DNS,Both,Route 53,,,"Production ALB, Staging ALB",DNS management and domain routing,
+ACM Certificate,Security,Both,Certificate Manager,,,Both ALBs,SSL certificates for HTTPS,
+NAT Gateway 1 Prod,Network,Production,NAT Gateway,Public,,Private Subnets,NAT gateway for private subnet outbound,
+NAT Gateway 2 Prod,Network,Production,NAT Gateway,Public,,Private Subnets,NAT gateway for private subnet outbound,
+NAT Gateway 1 Staging,Network,Staging,NAT Gateway,Public,,Private Subnets,NAT gateway for private subnet outbound,
+NAT Gateway 2 Staging,Network,Staging,NAT Gateway,Public,,Private Subnets,NAT gateway for private subnet outbound,
+CloudWatch Logs,Monitoring,Both,CloudWatch,,,ECS Services,Centralized logging for containers,
+CloudWatch Metrics,Monitoring,Both,CloudWatch,,,All AWS Resources,Metrics and monitoring,
+CloudWatch Alarms,Monitoring,Both,CloudWatch,,,"SNS, CloudWatch Dashboard",Alerting based on metrics,
+CloudWatch Dashboard,Monitoring,Both,CloudWatch,,,CloudWatch Metrics,Visual monitoring dashboard,
+SNS Alerts,Notification,Both,Simple Notification Service,,,Email Recipients,Email alerts for critical issues,
+SSM Parameter Store,Configuration,Both,Systems Manager,,,ECS Services,Secure parameter and secrets storage,
+IAM Roles,Security,Both,Identity and Access Management,,,ECS Services,Role-based access control,
+Auto Scaling,Scaling,Both,Application Auto Scaling,,,"ECS Services, CloudWatch",Automatic scaling based on metrics,
+S3 Bucket,Storage,Both,Simple Storage Service,,,ECS Services,File storage for application assets,
+Google Places API,External,Both,External Service,,,ECS Services,External API for location services,
+Apple Push Notifications,External,Both,External Service,,,ECS Services,Push notifications for iOS apps,
+SMTP Service,External,Both,External Service,,,ECS Services,Email delivery service,
+Facebook OAuth,External,Both,External Service,,,ECS Services,Social authentication,
+Google OAuth,External,Both,External Service,,,ECS Services,Social authentication,
+Apple Sign-In,External,Both,External Service,,,ECS Services,Apple authentication,
+Users,Client,Both,Internet,,,Load Balancers,End users accessing the application,
+iOS App,Client,Both,Mobile App,,,Load Balancers,iOS mobile application,
+Web App,Client,Both,Web Browser,,,Load Balancers,Web application interface,
+Production Target Group,Load Balancer,Production,ALB Target Group,,,Production ECS Service,Health check and routing for ECS tasks,
+Staging Target Group,Load Balancer,Staging,ALB Target Group,,,Staging ECS Service,Health check and routing for ECS tasks,
+GitHub Actions,CI/CD,Both,External Service,,,ECR Repository,Continuous integration and deployment,
+Terraform State,Infrastructure,Both,S3 Backend,,,Terraform,Infrastructure state management,
+DynamoDB State Lock,Infrastructure,Both,DynamoDB,,,Terraform,State locking for Terraform 
