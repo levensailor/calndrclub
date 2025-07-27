@@ -2,15 +2,17 @@
 from core.logging import setup_logging
 setup_logging()
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 import os
+import traceback
 
 from core.config import settings
 from core.database import database
-from core.middleware import add_no_cache_headers, bot_filter_middleware, request_validation_middleware
+from core.middleware import add_no_cache_headers, bot_filter_middleware, request_validation_middleware, request_logging_middleware
 from services.redis_service import redis_service
 from api.v1.api import api_router
 
@@ -121,7 +123,32 @@ def create_app() -> FastAPI:
         lifespan=lifespan
     )
     
-    # Add middleware#
+    # Global exception handler for better error logging
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        """Global exception handler to log all unhandled exceptions."""
+        # Skip logging for HTTPExceptions (they are handled elsewhere)
+        if isinstance(exc, HTTPException):
+            raise exc
+        
+        # Log the full exception with stack trace
+        logger.error(
+            f"Unhandled exception in {request.method} {request.url.path}: "
+            f"{type(exc).__name__}: {str(exc)}\n"
+            f"Traceback:\n{traceback.format_exc()}"
+        )
+        
+        # Return a generic error response
+        return JSONResponse(
+            status_code=500,
+            content={
+                "error": "Internal Server Error",
+                "message": "An unexpected error occurred. Please try again later."
+            }
+        )
+    
+    # Add middleware (order matters - first added is executed last)
+    app.middleware("http")(request_logging_middleware)  # Log requests (excluding health)
     app.middleware("http")(request_validation_middleware)
     app.middleware("http")(bot_filter_middleware)
     app.middleware("http")(add_no_cache_headers)

@@ -2,7 +2,8 @@ from fastapi import Request, HTTPException
 from fastapi.responses import Response, JSONResponse
 import re
 import asyncio
-from core.logging import logger
+import time
+from core.logging import logger, request_logger
 
 # Bot and scanner user agents to filter out
 BOT_USER_AGENTS = [
@@ -10,6 +11,63 @@ BOT_USER_AGENTS = [
     r'censys', r'shodan', r'masscan', r'nmap', r'zmap',
     r'nuclei', r'sqlmap', r'dirb', r'gobuster', r'nikto'
 ]
+
+# Health endpoints to exclude from logging
+HEALTH_ENDPOINTS = [
+    "/health",
+    "/db-info", 
+    "/cache-status"
+]
+
+async def request_logging_middleware(request: Request, call_next):
+    """Log API requests excluding health endpoints."""
+    start_time = time.time()
+    
+    # Skip logging for health endpoints
+    request_path = str(request.url.path)
+    if request_path in HEALTH_ENDPOINTS:
+        return await call_next(request)
+    
+    # Get client info
+    client_ip = request.client.host if request.client else "unknown"
+    user_agent = request.headers.get("user-agent", "unknown")
+    
+    # Log incoming request
+    request_logger.info(
+        f"➤ {request.method} {request_path} "
+        f"from {client_ip} "
+        f"[{user_agent[:100]}{'...' if len(user_agent) > 100 else ''}]"
+    )
+    
+    try:
+        # Process request
+        response = await call_next(request)
+        
+        # Calculate request duration
+        duration = time.time() - start_time
+        
+        # Log response
+        request_logger.info(
+            f"✓ {request.method} {request_path} "
+            f"→ {response.status_code} "
+            f"({duration:.3f}s)"
+        )
+        
+        return response
+        
+    except Exception as e:
+        # Calculate request duration for errors
+        duration = time.time() - start_time
+        
+        # Log error
+        request_logger.error(
+            f"✗ {request.method} {request_path} "
+            f"→ ERROR: {str(e)} "
+            f"({duration:.3f}s)"
+        )
+        
+        # Re-raise the exception to be handled by other middleware
+        raise
 
 async def request_validation_middleware(request: Request, call_next):
     """Validate and sanitize incoming HTTP requests to prevent malformed request errors."""

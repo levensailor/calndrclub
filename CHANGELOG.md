@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.11] - 2024-12-20 16:15:00 EST
+
+### Enhanced - Backend Logging System for Better Troubleshooting
+- **📝 Enhanced Logging**: Implemented comprehensive logging system with health endpoint exclusion
+  - Added function names to log format for better debugging
+  - Created separate request logging with timing and status codes
+  - Excluded health endpoints (/health, /db-info, /cache-status) from request logs to reduce noise
+  - Added global exception handler with full stack traces for Python troubleshooting
+  - Implemented log rotation (1MB files, 3 backups) with EST timestamps
+  - Created logging utilities with decorators for function entry/exit tracking
+  - Added LOGGING_GUIDE.md with best practices and usage examples
+
 ## [2.0.10] - 2024-12-20 15:45:00 EST
 
 ### Added - Production-Ready SSM Parameter Setup Script
