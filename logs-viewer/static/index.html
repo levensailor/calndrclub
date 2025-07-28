@@ -219,8 +219,98 @@
             align-items: center;
         }
 
+        .container-events {
+            background-color: #252525;
+            border-bottom: 1px solid #3a3a3a;
+            max-height: 150px;
+            overflow-y: auto;
+            transition: max-height 0.3s ease;
+        }
+
+        .container-events.collapsed {
+            max-height: 0;
+            overflow: hidden;
+        }
+
+        .container-events-header {
+            background-color: #2a2a2a;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .container-events-header:hover {
+            background-color: #333333;
+        }
+
+        .container-events-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #e0e0e0;
+        }
+
+        .container-events-toggle {
+            color: #a0aec0;
+            font-size: 0.8rem;
+            transition: transform 0.3s ease;
+        }
+
+        .container-events-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .container-event {
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid #3a3a3a;
+            font-size: 0.8rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .container-event:last-child {
+            border-bottom: none;
+        }
+
+        .container-event.new_container {
+            background-color: #1a2e1a;
+            border-left: 3px solid #48bb78;
+        }
+
+        .container-event.container_stopped {
+            background-color: #2e1a1a;
+            border-left: 3px solid #f56565;
+        }
+
+        .container-event.status_change {
+            background-color: #1a1e2e;
+            border-left: 3px solid #63b3ed;
+        }
+
+        .event-icon {
+            font-size: 1rem;
+            margin-right: 0.25rem;
+        }
+
+        .event-timestamp {
+            color: #a0aec0;
+            font-size: 0.7rem;
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        .event-task-id {
+            color: #68d391;
+            font-size: 0.7rem;
+            font-family: monospace;
+        }
+
         .log-container {
-            height: calc(100vh - 140px);
+            height: calc(100vh - 200px);
             overflow-y: auto;
             padding: 1rem;
             background-color: #1a1a1a;
@@ -423,6 +513,16 @@
         </div>
     </div>
 
+    <div class="container-events-header" id="containerEventsHeader">
+        <div class="container-events-title">🔄 Container Lifecycle Events</div>
+        <div class="container-events-toggle" id="containerEventsToggle">▼</div>
+    </div>
+    <div class="container-events" id="containerEvents">
+        <div style="padding: 1rem; text-align: center; color: #a0aec0; font-style: italic;">
+            No container events yet...
+        </div>
+    </div>
+
     <div class="log-container" id="logContainer">
         <div class="loading" id="loadingMessage">Connecting to CloudWatch...</div>
     </div>
@@ -445,6 +545,8 @@
                 this.logCount = 0;
                 this.maxLogs = 1000; // Limit logs to prevent memory issues
                 this.ecsData = null;
+                this.containerEvents = [];
+                this.containerEventsExpanded = true;
                 
                 this.initializeElements();
                 this.setupEventListeners();
@@ -472,6 +574,11 @@
                 this.containerStatus = document.getElementById('containerStatus');
                 this.taskStatusBadge = document.getElementById('taskStatusBadge');
                 this.ecsRestartBtn = document.getElementById('ecsRestartBtn');
+                
+                // Container events elements
+                this.containerEventsHeader = document.getElementById('containerEventsHeader');
+                this.containerEventsToggle = document.getElementById('containerEventsToggle');
+                this.containerEventsContainer = document.getElementById('containerEvents');
             }
 
             setupEventListeners() {
@@ -517,10 +624,21 @@
                     this.updateAutoScrollIndicator();
                     this.scrollToBottom();
                 });
+
+                // Container events toggle
+                this.containerEventsHeader.addEventListener('click', () => {
+                    this.toggleContainerEvents();
+                });
             }
 
             updateAutoScrollIndicator() {
                 this.autoScrollIndicator.classList.toggle('disabled', !this.autoScroll);
+            }
+
+            toggleContainerEvents() {
+                this.containerEventsExpanded = !this.containerEventsExpanded;
+                this.containerEventsContainer.classList.toggle('collapsed', !this.containerEventsExpanded);
+                this.containerEventsToggle.classList.toggle('expanded', this.containerEventsExpanded);
             }
 
             connect() {
@@ -581,6 +699,12 @@
                     case 'service_restart':
                         this.handleServiceRestart(message.data);
                         break;
+                    case 'container_event':
+                        this.handleContainerEvent(message.data);
+                        break;
+                    case 'task_history':
+                        this.handleTaskHistory(message.data);
+                        break;
                     default:
                         console.log('📨 Unknown message type:', message.type);
                 }
@@ -630,6 +754,93 @@
                         'error'
                     );
                 }
+            }
+
+            handleContainerEvent(event) {
+                // Add to container events list
+                this.containerEvents.unshift(event);
+                
+                // Keep only last 20 events
+                if (this.containerEvents.length > 20) {
+                    this.containerEvents = this.containerEvents.slice(0, 20);
+                }
+                
+                // Update UI
+                this.updateContainerEventsDisplay();
+                
+                // Show notification for new events
+                const eventMessages = {
+                    'new_container': `🆕 New container started: ${event.taskId.substring(0, 12)}`,
+                    'container_stopped': `🛑 Container stopped: ${event.taskId.substring(0, 12)}`,
+                    'status_change': `🔄 Container status changed: ${event.previousStatus} → ${event.currentStatus}`
+                };
+                
+                const message = eventMessages[event.event] || `Container event: ${event.event}`;
+                const type = event.event === 'new_container' ? 'success' : 
+                           event.event === 'container_stopped' ? 'warning' : 'info';
+                
+                this.showNotification(message, type);
+            }
+
+            handleTaskHistory(data) {
+                // Add historical events to the beginning of the list
+                this.containerEvents = [...data.events, ...this.containerEvents];
+                
+                // Keep only last 20 events
+                if (this.containerEvents.length > 20) {
+                    this.containerEvents = this.containerEvents.slice(0, 20);
+                }
+                
+                this.updateContainerEventsDisplay();
+            }
+
+            updateContainerEventsDisplay() {
+                if (this.containerEvents.length === 0) {
+                    this.containerEventsContainer.innerHTML = `
+                        <div style="padding: 1rem; text-align: center; color: #a0aec0; font-style: italic;">
+                            No container events yet...
+                        </div>
+                    `;
+                    return;
+                }
+
+                const eventsHtml = this.containerEvents.map(event => {
+                    const icons = {
+                        'new_container': '🆕',
+                        'container_stopped': '🛑',
+                        'status_change': '🔄'
+                    };
+                    
+                    const icon = icons[event.event] || '📋';
+                    const timestamp = new Date(event.timestamp).toLocaleTimeString();
+                    const taskIdShort = event.taskId.substring(0, 12);
+                    
+                    let message = '';
+                    switch (event.event) {
+                        case 'new_container':
+                            message = `New container started (${event.taskDefinition})`;
+                            break;
+                        case 'container_stopped':
+                            message = `Container stopped (${event.taskDefinition})`;
+                            break;
+                        case 'status_change':
+                            message = `Status: ${event.previousStatus} → ${event.currentStatus}`;
+                            break;
+                        default:
+                            message = `Event: ${event.event}`;
+                    }
+                    
+                    return `
+                        <div class="container-event ${event.event}">
+                            <span class="event-icon">${icon}</span>
+                            <span>${message}</span>
+                            <span class="event-task-id">${taskIdShort}</span>
+                            <span class="event-timestamp">${timestamp}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                this.containerEventsContainer.innerHTML = eventsHtml;
             }
 
             addLogEntry(logData) {

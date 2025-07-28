@@ -131,6 +131,10 @@ class CloudWatchLogStreamer:
         self.is_streaming = False
         self.hide_health_checks = True
         
+        # Container lifecycle tracking
+        self.previous_tasks = {}  # Track previous task states
+        self.task_history = []    # Keep history of task changes
+        
     async def add_client(self, websocket: WebSocket):
         """Add a new websocket client"""
         self.connected_clients.add(websocket)
@@ -138,6 +142,9 @@ class CloudWatchLogStreamer:
         
         # Send current ECS status to new client
         await self.send_ecs_status(websocket)
+        
+        # Send recent task history to new client
+        await self.send_task_history(websocket)
         
         if not self.is_streaming:
             await self.start_streaming()
@@ -173,6 +180,9 @@ class CloudWatchLogStreamer:
         try:
             tasks = await self.ecs_manager.get_running_tasks()
             
+            # Detect container lifecycle changes
+            await self.detect_container_changes(tasks)
+            
             ecs_status = {
                 'type': 'ecs_status',
                 'data': {
@@ -190,6 +200,116 @@ class CloudWatchLogStreamer:
                 
         except Exception as e:
             logger.error(f"❌ Error sending ECS status: {e}")
+    
+    async def detect_container_changes(self, current_tasks: List[Dict]):
+        """Detect and notify about container lifecycle changes"""
+        try:
+            current_task_ids = {task['taskId'] for task in current_tasks}
+            previous_task_ids = set(self.previous_tasks.keys())
+            
+            # Detect new tasks (containers spun up)
+            new_task_ids = current_task_ids - previous_task_ids
+            
+            # Detect removed tasks (containers stopped/errored)
+            removed_task_ids = previous_task_ids - current_task_ids
+            
+            # Process new tasks
+            for task in current_tasks:
+                task_id = task['taskId']
+                
+                if task_id in new_task_ids:
+                    # New container detected
+                    event = {
+                        'type': 'container_lifecycle',
+                        'event': 'new_container',
+                        'taskId': task_id,
+                        'taskDefinition': task['taskDefinition'],
+                        'status': task['lastStatus'],
+                        'startedAt': task.get('startedAt', ''),
+                        'containers': task.get('containers', []),
+                        'timestamp': datetime.now().isoformat()
+                    }
+                    
+                    # Add to history
+                    self.task_history.append(event)
+                    
+                    # Keep only last 50 events
+                    if len(self.task_history) > 50:
+                        self.task_history = self.task_history[-50:]
+                    
+                    logger.info(f"🆕 New container detected: {task_id} ({task['taskDefinition']})")
+                    
+                    # Broadcast new container notification
+                    await self.broadcast_message({
+                        'type': 'container_event',
+                        'data': event
+                    })
+                
+                # Check for status changes in existing tasks
+                if task_id in self.previous_tasks:
+                    previous_task = self.previous_tasks[task_id]
+                    current_status = task.get('lastStatus', 'unknown')
+                    previous_status = previous_task.get('lastStatus', 'unknown')
+                    
+                    if current_status != previous_status:
+                        event = {
+                            'type': 'container_lifecycle', 
+                            'event': 'status_change',
+                            'taskId': task_id,
+                            'taskDefinition': task['taskDefinition'],
+                            'previousStatus': previous_status,
+                            'currentStatus': current_status,
+                            'timestamp': datetime.now().isoformat()
+                        }
+                        
+                        self.task_history.append(event)
+                        logger.info(f"🔄 Task status changed: {task_id} ({previous_status} → {current_status})")
+                        
+                        await self.broadcast_message({
+                            'type': 'container_event',
+                            'data': event
+                        })
+            
+            # Process removed tasks
+            for task_id in removed_task_ids:
+                previous_task = self.previous_tasks[task_id]
+                event = {
+                    'type': 'container_lifecycle',
+                    'event': 'container_stopped',
+                    'taskId': task_id,
+                    'taskDefinition': previous_task.get('taskDefinition', 'unknown'),
+                    'lastStatus': previous_task.get('lastStatus', 'unknown'),
+                    'stoppedAt': datetime.now().isoformat(),
+                    'timestamp': datetime.now().isoformat()
+                }
+                
+                self.task_history.append(event)
+                logger.info(f"🛑 Container stopped: {task_id} ({previous_task.get('taskDefinition', 'unknown')})")
+                
+                await self.broadcast_message({
+                    'type': 'container_event',
+                    'data': event
+                })
+            
+            # Update previous tasks state
+            self.previous_tasks = {task['taskId']: task for task in current_tasks}
+            
+        except Exception as e:
+            logger.error(f"❌ Error detecting container changes: {e}")
+    
+    async def send_task_history(self, websocket: WebSocket):
+        """Send task history to newly connected client"""
+        try:
+            if self.task_history:
+                await websocket.send_text(json.dumps({
+                    'type': 'task_history',
+                    'data': {
+                        'events': self.task_history[-10:],  # Send last 10 events
+                        'timestamp': datetime.now().isoformat()
+                    }
+                }))
+        except Exception as e:
+            logger.error(f"❌ Error sending task history: {e}")
     
     def should_filter_log(self, log_message: str) -> bool:
         """Check if log should be filtered out"""
@@ -282,9 +402,9 @@ class CloudWatchLogStreamer:
                     # Update last timestamp
                     last_timestamp = max(last_timestamp, event.get('timestamp', last_timestamp))
                 
-                # Update ECS status every 30 seconds (15 cycles)
+                # Update ECS status every 15 seconds (7.5 cycles) for faster container change detection
                 ecs_status_counter += 1
-                if ecs_status_counter >= 15:
+                if ecs_status_counter >= 8:
                     await self.send_ecs_status()
                     ecs_status_counter = 0
                 
