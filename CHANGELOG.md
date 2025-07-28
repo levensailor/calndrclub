@@ -2,6 +2,17 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.21] - 2025-01-10 12:40:00 EST
+
+### Fixed - Critical Database Parameter Binding Error in Custody Endpoints
+- **🔧 Critical Fix**: Resolved TypeError in database.fetch_all() method calls preventing custody data access
+  - **Problem**: PostgreSQL-style parameter placeholders ($1, $2, $3) incompatible with databases library
+  - **Solution**: Changed to named parameters (:family_id, :start_date, :end_date) with dictionary binding
+  - **Impact**: Fixed 500 Internal Server Error when iOS app fetches custody calendar data
+  - **Affected Endpoints**: get_custody_records_optimized(), get_custody_records_handoff_only(), get_performance_stats()
+  - **Root Cause**: Parameter binding mismatch causing "takes from 2 to 3 positional arguments but 5 were given"
+  - **Result**: All custody functionality restored in new container deployment (calndr-staging:8)
+
 ## [2.0.20] - 2025-01-10 00:49:00 EST
 
 ### Enhanced - Container Lifecycle Tracking in CloudWatch Log Viewer
