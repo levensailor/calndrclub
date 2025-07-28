@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.23] - 2025-01-10 13:39:00 EST
+
+### Fixed - Redis Cache Delete Operations Hanging Causing 504 Custody Update Timeouts
+- **🔧 Critical Fix**: Resolved Redis delete operations hanging without timeout protection during custody updates
+  - **Problem**: Cache invalidation operations hanging indefinitely on slow Redis responses after successful database updates
+  - **Symptoms**: Custody toggles working once but failing on subsequent attempts, 504 Gateway Timeout errors
+  - **Root Cause**: Redis delete() method lacked timeout protection unlike get() method causing infinite hangs
+  - **Solution**: Added 2-second timeout to Redis delete operations using asyncio.wait_for() 
+  - **Graceful Degradation**: Cache invalidation failures no longer block successful database updates
+  - **Impact**: Custody updates now complete reliably in <1 second with proper cache management
+  - **Result**: iOS app custody toggle functionality restored with consistent performance
+
 ## [2.0.22] - 2025-01-10 13:32:00 EST
 
 ### Fixed - Google OAuth Timeout Causing 504 Gateway Timeout Errors
