@@ -1,1 +1,771 @@
- 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudWatch Log Viewer - Calndr Staging</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background-color: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        .header {
+            background-color: #2d3748;
+            padding: 1rem;
+            border-bottom: 1px solid #4a5568;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header h1 {
+            color: #63b3ed;
+            font-size: 1.5rem;
+            margin: 0;
+        }
+
+        .header .subtitle {
+            color: #a0aec0;
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #48bb78;
+            animation: pulse 2s infinite;
+        }
+
+        .status-indicator.disconnected {
+            background-color: #f56565;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 24px;
+            background-color: #4a5568;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        .toggle-switch.active {
+            background-color: #63b3ed;
+        }
+
+        .toggle-switch .slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border-radius: 50%;
+            transition: transform 0.3s ease;
+        }
+
+        .toggle-switch.active .slider {
+            transform: translateX(26px);
+        }
+
+        .clear-btn, .restart-btn {
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s;
+        }
+
+        .clear-btn {
+            background-color: #f56565;
+        }
+
+        .clear-btn:hover {
+            background-color: #e53e3e;
+        }
+
+        .restart-btn {
+            background-color: #ed8936;
+        }
+
+        .restart-btn:hover {
+            background-color: #dd6b20;
+        }
+
+        .restart-btn:disabled {
+            background-color: #4a5568;
+            cursor: not-allowed;
+        }
+
+        .auto-scroll-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .auto-scroll-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #48bb78;
+        }
+
+        .auto-scroll-indicator.disabled {
+            background-color: #a0aec0;
+        }
+
+        .ecs-info {
+            background-color: #2a2a2a;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid #3a3a3a;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            font-size: 0.85rem;
+        }
+
+        .ecs-details {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        .ecs-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .ecs-label {
+            color: #a0aec0;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .ecs-value {
+            color: #e0e0e0;
+            font-weight: bold;
+        }
+
+        .task-status {
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .task-status.running {
+            background-color: #38a169;
+            color: white;
+        }
+
+        .task-status.pending {
+            background-color: #ed8936;
+            color: white;
+        }
+
+        .task-status.stopped {
+            background-color: #f56565;
+            color: white;
+        }
+
+        .ecs-actions {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+        .log-container {
+            height: calc(100vh - 140px);
+            overflow-y: auto;
+            padding: 1rem;
+            background-color: #1a1a1a;
+            scroll-behavior: smooth;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.5rem;
+            border-radius: 0.25rem;
+            border-left: 3px solid #4a5568;
+            background-color: #2d3748;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+
+        .log-entry.error {
+            border-left-color: #f56565;
+            background-color: #322020;
+        }
+
+        .log-entry.warning {
+            border-left-color: #ed8936;
+            background-color: #2d2118;
+        }
+
+        .log-entry.debug {
+            border-left-color: #805ad5;
+            background-color: #201c2e;
+        }
+
+        .log-timestamp {
+            color: #a0aec0;
+            font-weight: bold;
+            margin-right: 0.5rem;
+        }
+
+        .log-level {
+            color: #63b3ed;
+            font-weight: bold;
+            margin-right: 0.5rem;
+            min-width: 60px;
+            display: inline-block;
+        }
+
+        .log-level.error {
+            color: #f56565;
+        }
+
+        .log-level.warning {
+            color: #ed8936;
+        }
+
+        .log-level.debug {
+            color: #805ad5;
+        }
+
+        .log-stream {
+            color: #68d391;
+            font-size: 0.75rem;
+            margin-right: 0.5rem;
+        }
+
+        .log-message {
+            color: #e0e0e0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .connection-status {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background-color: #2d3748;
+            color: #e0e0e0;
+            padding: 0.5rem 1rem;
+            border-radius: 0.25rem;
+            border: 1px solid #4a5568;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .connection-status.show {
+            opacity: 1;
+        }
+
+        .loading {
+            text-align: center;
+            color: #a0aec0;
+            padding: 2rem;
+            font-style: italic;
+        }
+
+        .notification {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background-color: #2d3748;
+            color: #e0e0e0;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            border-left: 4px solid #63b3ed;
+            z-index: 1000;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.3s ease;
+            max-width: 400px;
+        }
+
+        .notification.show {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .notification.success {
+            border-left-color: #48bb78;
+        }
+
+        .notification.error {
+            border-left-color: #f56565;
+        }
+
+        .notification.warning {
+            border-left-color: #ed8936;
+        }
+
+        /* Scrollbar styling */
+        .log-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .log-container::-webkit-scrollbar-track {
+            background: #2d3748;
+        }
+
+        .log-container::-webkit-scrollbar-thumb {
+            background: #4a5568;
+            border-radius: 4px;
+        }
+
+        .log-container::-webkit-scrollbar-thumb:hover {
+            background: #63b3ed;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>
+            <h1>🔍 CloudWatch Log Viewer</h1>
+            <div class="subtitle">Calndr Staging ECS - Real-time Logs</div>
+        </div>
+        <div class="controls">
+            <div class="auto-scroll-toggle">
+                <span>Auto-scroll:</span>
+                <div class="auto-scroll-indicator" id="autoScrollIndicator"></div>
+            </div>
+            <div class="filter-toggle">
+                <span>Hide Health Checks:</span>
+                <div class="toggle-switch active" id="healthToggle">
+                    <div class="slider"></div>
+                </div>
+            </div>
+            <button class="clear-btn" id="clearBtn">Clear Logs</button>
+            <button class="restart-btn" id="restartBtn">Restart Container</button>
+            <div class="status">
+                <div class="status-indicator" id="statusIndicator"></div>
+                <span id="statusText">Connecting...</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="ecs-info" id="ecsInfo">
+        <div class="ecs-details">
+            <div class="ecs-item">
+                <div class="ecs-label">Cluster</div>
+                <div class="ecs-value" id="clusterName">Loading...</div>
+            </div>
+            <div class="ecs-item">
+                <div class="ecs-label">Service</div>
+                <div class="ecs-value" id="serviceName">Loading...</div>
+            </div>
+            <div class="ecs-item">
+                <div class="ecs-label">Running Tasks</div>
+                <div class="ecs-value" id="taskCount">Loading...</div>
+            </div>
+            <div class="ecs-item">
+                <div class="ecs-label">Task Definition</div>
+                <div class="ecs-value" id="taskDefinition">Loading...</div>
+            </div>
+            <div class="ecs-item">
+                <div class="ecs-label">Container Status</div>
+                <div class="ecs-value" id="containerStatus">
+                    <span class="task-status" id="taskStatusBadge">Loading</span>
+                </div>
+            </div>
+        </div>
+        <div class="ecs-actions">
+            <button class="restart-btn" id="ecsRestartBtn">🔄 Restart Service</button>
+        </div>
+    </div>
+
+    <div class="log-container" id="logContainer">
+        <div class="loading" id="loadingMessage">Connecting to CloudWatch...</div>
+    </div>
+
+    <div class="connection-status" id="connectionStatus">
+        Reconnecting...
+    </div>
+
+    <div class="notification" id="notification">
+        <div id="notificationMessage"></div>
+    </div>
+
+    <script>
+        class CloudWatchLogViewer {
+            constructor() {
+                this.socket = null;
+                this.isConnected = false;
+                this.autoScroll = true;
+                this.hideHealthChecks = true;
+                this.logCount = 0;
+                this.maxLogs = 1000; // Limit logs to prevent memory issues
+                this.ecsData = null;
+                
+                this.initializeElements();
+                this.setupEventListeners();
+                this.connect();
+            }
+
+            initializeElements() {
+                this.logContainer = document.getElementById('logContainer');
+                this.statusIndicator = document.getElementById('statusIndicator');
+                this.statusText = document.getElementById('statusText');
+                this.healthToggle = document.getElementById('healthToggle');
+                this.clearBtn = document.getElementById('clearBtn');
+                this.restartBtn = document.getElementById('restartBtn');
+                this.connectionStatus = document.getElementById('connectionStatus');
+                this.loadingMessage = document.getElementById('loadingMessage');
+                this.autoScrollIndicator = document.getElementById('autoScrollIndicator');
+                this.notification = document.getElementById('notification');
+                this.notificationMessage = document.getElementById('notificationMessage');
+                
+                // ECS elements
+                this.clusterName = document.getElementById('clusterName');
+                this.serviceName = document.getElementById('serviceName');
+                this.taskCount = document.getElementById('taskCount');
+                this.taskDefinition = document.getElementById('taskDefinition');
+                this.containerStatus = document.getElementById('containerStatus');
+                this.taskStatusBadge = document.getElementById('taskStatusBadge');
+                this.ecsRestartBtn = document.getElementById('ecsRestartBtn');
+            }
+
+            setupEventListeners() {
+                // Health check toggle
+                this.healthToggle.addEventListener('click', () => {
+                    this.hideHealthChecks = !this.hideHealthChecks;
+                    this.healthToggle.classList.toggle('active', this.hideHealthChecks);
+                    this.sendMessage({
+                        type: 'toggle_health_filter',
+                        hide_health: this.hideHealthChecks
+                    });
+                });
+
+                // Clear logs button
+                this.clearBtn.addEventListener('click', () => {
+                    this.clearLogs();
+                });
+
+                // Restart buttons
+                this.restartBtn.addEventListener('click', () => {
+                    this.restartService();
+                });
+
+                this.ecsRestartBtn.addEventListener('click', () => {
+                    this.restartService();
+                });
+
+                // Auto-scroll detection
+                this.logContainer.addEventListener('scroll', () => {
+                    const { scrollTop, scrollHeight, clientHeight } = this.logContainer;
+                    const wasAutoScrolling = this.autoScroll;
+                    this.autoScroll = scrollTop + clientHeight >= scrollHeight - 50;
+                    
+                    // Update auto-scroll indicator
+                    if (wasAutoScrolling !== this.autoScroll) {
+                        this.updateAutoScrollIndicator();
+                    }
+                });
+
+                // Click to enable auto-scroll
+                this.autoScrollIndicator.addEventListener('click', () => {
+                    this.autoScroll = true;
+                    this.updateAutoScrollIndicator();
+                    this.scrollToBottom();
+                });
+            }
+
+            updateAutoScrollIndicator() {
+                this.autoScrollIndicator.classList.toggle('disabled', !this.autoScroll);
+            }
+
+            connect() {
+                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+                const wsUrl = `${protocol}//${window.location.host}/ws`;
+                
+                console.log('🔌 Connecting to:', wsUrl);
+                
+                this.socket = new WebSocket(wsUrl);
+                
+                this.socket.onopen = () => {
+                    console.log('✅ WebSocket connected');
+                    this.isConnected = true;
+                    this.updateConnectionStatus('Connected', true);
+                    this.hideConnectionStatus();
+                    this.hideLoading();
+                };
+
+                this.socket.onmessage = (event) => {
+                    const message = JSON.parse(event.data);
+                    this.handleMessage(message);
+                };
+
+                this.socket.onclose = () => {
+                    console.log('❌ WebSocket disconnected');
+                    this.isConnected = false;
+                    this.updateConnectionStatus('Disconnected', false);
+                    this.showConnectionStatus('Connection lost. Reconnecting...');
+                    this.reconnect();
+                };
+
+                this.socket.onerror = (error) => {
+                    console.error('❌ WebSocket error:', error);
+                    this.showConnectionStatus('Connection error. Retrying...');
+                };
+            }
+
+            reconnect() {
+                setTimeout(() => {
+                    if (!this.isConnected) {
+                        console.log('🔄 Attempting to reconnect...');
+                        this.connect();
+                    }
+                }, 3000);
+            }
+
+            handleMessage(message) {
+                switch (message.type) {
+                    case 'log':
+                        this.addLogEntry(message.data);
+                        break;
+                    case 'filter_status':
+                        this.showConnectionStatus(message.data.message);
+                        break;
+                    case 'ecs_status':
+                        this.updateECSStatus(message.data);
+                        break;
+                    case 'service_restart':
+                        this.handleServiceRestart(message.data);
+                        break;
+                    default:
+                        console.log('📨 Unknown message type:', message.type);
+                }
+            }
+
+            updateECSStatus(data) {
+                this.ecsData = data;
+                
+                this.clusterName.textContent = data.cluster || 'Unknown';
+                this.serviceName.textContent = data.service || 'Unknown';
+                
+                const tasks = data.tasks || [];
+                this.taskCount.textContent = `${tasks.length}`;
+                
+                if (tasks.length > 0) {
+                    const task = tasks[0]; // Show info for first task
+                    this.taskDefinition.textContent = task.taskDefinition || 'Unknown';
+                    
+                    const status = task.lastStatus || 'unknown';
+                    this.taskStatusBadge.textContent = status.toUpperCase();
+                    this.taskStatusBadge.className = `task-status ${status.toLowerCase()}`;
+                    
+                    // Show container information
+                    if (task.containers && task.containers.length > 0) {
+                        const container = task.containers[0];
+                        const containerInfo = `${container.name} (${container.lastStatus})`;
+                        this.containerStatus.innerHTML = `
+                            <span class="task-status ${container.lastStatus.toLowerCase()}">${containerInfo}</span>
+                        `;
+                    }
+                } else {
+                    this.taskDefinition.textContent = 'No tasks running';
+                    this.taskStatusBadge.textContent = 'STOPPED';
+                    this.taskStatusBadge.className = 'task-status stopped';
+                }
+            }
+
+            handleServiceRestart(data) {
+                if (data.success) {
+                    this.showNotification(
+                        `🔄 Service restart initiated successfully. Deployment ID: ${data.deploymentId}`,
+                        'success'
+                    );
+                } else {
+                    this.showNotification(
+                        `❌ Failed to restart service: ${data.message}`,
+                        'error'
+                    );
+                }
+            }
+
+            addLogEntry(logData) {
+                const logEntry = document.createElement('div');
+                logEntry.className = `log-entry ${logData.level.toLowerCase()}`;
+                
+                logEntry.innerHTML = `
+                    <span class="log-timestamp">${logData.timestamp}</span>
+                    <span class="log-level ${logData.level.toLowerCase()}">[${logData.level}]</span>
+                    <span class="log-stream">${logData.stream.split('/').pop()}</span>
+                    <span class="log-message">${this.escapeHtml(logData.message)}</span>
+                `;
+
+                this.logContainer.appendChild(logEntry);
+                this.logCount++;
+
+                // Remove old logs if we have too many
+                if (this.logCount > this.maxLogs) {
+                    const firstLog = this.logContainer.querySelector('.log-entry');
+                    if (firstLog) {
+                        firstLog.remove();
+                        this.logCount--;
+                    }
+                }
+
+                // Auto-scroll to bottom if user is at the bottom
+                if (this.autoScroll) {
+                    // Use requestAnimationFrame for smoother scrolling
+                    requestAnimationFrame(() => {
+                        this.scrollToBottom();
+                    });
+                }
+            }
+
+            clearLogs() {
+                const logEntries = this.logContainer.querySelectorAll('.log-entry');
+                logEntries.forEach(entry => entry.remove());
+                this.logCount = 0;
+                console.log('🧹 Logs cleared');
+                this.showNotification('📋 Logs cleared', 'success');
+            }
+
+            async restartService() {
+                this.restartBtn.disabled = true;
+                this.ecsRestartBtn.disabled = true;
+                
+                try {
+                    const response = await fetch('/api/ecs/restart', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        this.showNotification(
+                            `🔄 ${result.message}. Deployment ID: ${result.deploymentId}`,
+                            'success'
+                        );
+                    } else {
+                        this.showNotification(
+                            `❌ ${result.message}`,
+                            'error'
+                        );
+                    }
+                } catch (error) {
+                    console.error('Error restarting service:', error);
+                    this.showNotification(
+                        `❌ Error restarting service: ${error.message}`,
+                        'error'
+                    );
+                } finally {
+                    // Re-enable buttons after 30 seconds
+                    setTimeout(() => {
+                        this.restartBtn.disabled = false;
+                        this.ecsRestartBtn.disabled = false;
+                    }, 30000);
+                }
+            }
+
+            scrollToBottom() {
+                this.logContainer.scrollTop = this.logContainer.scrollHeight;
+            }
+
+            updateConnectionStatus(text, connected) {
+                this.statusText.textContent = text;
+                this.statusIndicator.classList.toggle('disconnected', !connected);
+            }
+
+            showConnectionStatus(message) {
+                this.connectionStatus.textContent = message;
+                this.connectionStatus.classList.add('show');
+                setTimeout(() => {
+                    this.connectionStatus.classList.remove('show');
+                }, 3000);
+            }
+
+            hideConnectionStatus() {
+                this.connectionStatus.classList.remove('show');
+            }
+
+            hideLoading() {
+                if (this.loadingMessage) {
+                    this.loadingMessage.remove();
+                    this.loadingMessage = null;
+                }
+            }
+
+            showNotification(message, type = 'info') {
+                this.notificationMessage.textContent = message;
+                this.notification.className = `notification ${type} show`;
+                
+                setTimeout(() => {
+                    this.notification.classList.remove('show');
+                }, 5000);
+            }
+
+            sendMessage(message) {
+                if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+                    this.socket.send(JSON.stringify(message));
+                }
+            }
+
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+        }
+
+        // Initialize the log viewer when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new CloudWatchLogViewer();
+        });
+    </script>
+</body>
+</html> 

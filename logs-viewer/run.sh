@@ -7,6 +7,7 @@ set -e
 
 LOG_VIEWER_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPT_NAME="CloudWatch Log Viewer"
+VENV_DIR="$LOG_VIEWER_DIR/venv"
 
 echo "🚀 Starting $SCRIPT_NAME..."
 echo "📁 Working directory: $LOG_VIEWER_DIR"
@@ -24,16 +25,23 @@ if ! command -v python3 &> /dev/null; then
     exit 1
 fi
 
-# Install dependencies if needed
-echo "📦 Checking dependencies..."
-if ! python3 -c "import fastapi, uvicorn, boto3" 2>/dev/null; then
-    echo "📥 Installing required dependencies..."
-    pip3 install -r requirements.txt
+# Create virtual environment if it doesn't exist
+if [[ ! -d "$VENV_DIR" ]]; then
+    echo "📦 Creating virtual environment..."
+    python3 -m venv "$VENV_DIR"
 fi
+
+# Activate virtual environment
+echo "🔧 Activating virtual environment..."
+source "$VENV_DIR/bin/activate"
+
+# Install dependencies
+echo "📥 Installing/updating dependencies..."
+pip install -r requirements.txt
 
 # Check AWS credentials
 echo "🔐 Checking AWS credentials..."
-if ! python3 -c "import boto3; boto3.client('logs', region_name='us-east-1').describe_log_groups(limit=1)" 2>/dev/null; then
+if ! python -c "import boto3; boto3.client('logs', region_name='us-east-1').describe_log_groups(limit=1)" 2>/dev/null; then
     echo "⚠️  Warning: AWS credentials may not be configured properly"
     echo "   Make sure your AWS credentials are set up in ~/.aws/credentials"
     echo "   or through environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)"
@@ -58,4 +66,4 @@ echo "Press Ctrl+C to stop the service"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 cd "$LOG_VIEWER_DIR"
-python3 cloudwatch_log_streamer.py 
+python cloudwatch_log_streamer.py 
