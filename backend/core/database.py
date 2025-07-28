@@ -90,8 +90,8 @@ try:
     # Configure the database with proper connection limits
     database = databases.Database(
         settings.DATABASE_URL,
-        min_size=1,      # Minimum number of connections in the pool
-        max_size=5,      # Maximum number of connections per worker
+        min_size=2,      # Minimum number of connections in the pool
+        max_size=15,     # Increased for concurrent auth operations (was 5)
         force_rollback=True,  # Force rollback on connection close
         ssl="prefer"     # Use SSL if available
     )

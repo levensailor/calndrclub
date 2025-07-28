@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import Depends, HTTPException, status
@@ -82,14 +83,12 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             print(f"🔐❌ Backend: Invalid UUID format for user_id '{user_id}': {e}")
             raise credentials_exception
         
-        # Add transaction management and retry logic for PostgreSQL transaction errors
+        # Simple read operation - no transaction needed, just retry logic for transient errors
         max_retries = 2
         for attempt in range(max_retries + 1):
             try:
-                # Use explicit transaction for database operations
-                async with database.transaction():
-                    query = users.select().where(users.c.id == user_uuid)
-                    user = await database.fetch_one(query)
+                query = users.select().where(users.c.id == user_uuid)
+                user = await database.fetch_one(query)
                 
                 if user is None:
                     print(f"🔐❌ Backend: User {user_id} not found in database")
@@ -101,12 +100,13 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             except Exception as db_error:
                 error_str = str(db_error).lower()
                 
-                # Handle PostgreSQL transaction abort errors with retry
-                if "current transaction is aborted" in error_str and attempt < max_retries:
-                    print(f"🔐⚠️ Backend: PostgreSQL transaction aborted, retrying user lookup (attempt {attempt + 1}/{max_retries + 1})")
+                # Handle transient database errors with retry (connection issues, transaction aborts)
+                if any(err in error_str for err in ["current transaction is aborted", "another operation is in progress", "connection", "timeout"]) and attempt < max_retries:
+                    print(f"🔐⚠️ Backend: Database transient error, retrying user lookup (attempt {attempt + 1}/{max_retries + 1}): {db_error}")
+                    await asyncio.sleep(0.1 * (attempt + 1))  # Brief backoff
                     continue
                 else:
-                    # Re-raise the error if it's not a transaction abort or we've exhausted retries
+                    # Re-raise the error if it's not a transient error or we've exhausted retries
                     raise db_error
         
     except Exception as e:
