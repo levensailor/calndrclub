@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.18] - 2025-01-09 23:59:00 EST
+
+### Fixed - 405 Method Not Allowed for Custody PUT Requests
+- **🔧 Critical Fix**: Resolved FastAPI route pattern conflict causing 405 errors for custody updates
+  - Route conflict: Generic `/{year}/{month}` was matching specific `/date/{custody_date}` patterns
+  - FastAPI interpreted `/date/2025-09-03` as year="date", month="2025-09-03" 
+  - Since generic route only supported GET method, PUT requests returned 405 Method Not Allowed
+  - **Solution**: Moved specific routes (POST /, PUT /date/{date}) to top of file before generic routes
+  - FastAPI now matches specific patterns first, preventing conflicts
+  - Fixes iOS app unable to update custody records with proper error handling
+  - Also fixes OPTIONS preflight requests for CORS that were failing with 405
+
 ## [2.0.17] - 2025-01-09 23:30:00 EST
 
 ### Fixed - Container Log Buffering in CloudWatch
