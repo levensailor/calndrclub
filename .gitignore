@@ -38,3 +38,4 @@ terraform/.terraform/providers/*
 scripts/setup-ssm-parameters.sh
 
 *.tfvars
+terraform/staging.tfvars
