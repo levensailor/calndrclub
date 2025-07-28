@@ -2,6 +2,21 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.26] - 2025-01-10 15:18:00 EST
+
+### Fixed - Database Concurrency Bottleneck from Transaction Over-Use
+- **🔧 Critical Performance Fix**: Resolved "another operation is in progress" database concurrency errors
+  - **Problem**: Unnecessary transaction wrapping on simple read operations causing connection pool exhaustion
+  - **Symptom**: High-frequency get_current_user() calls (every authenticated request) wrapped in transactions blocking concurrent operations
+  - **Root Cause**: Connection pool too small (5 connections) + transaction overhead holding connections exclusively
+  - **Still Async**: No change to async database architecture (databases + asyncpg) - purely a configuration optimization
+  - **Solution**: Removed transaction wrapping from simple SELECT operations, reserved for multi-step operations only
+  - **Enhanced Retry**: Added retry logic for transient database errors with exponential backoff (0.1s * attempt)
+  - **Increased Pool**: Expanded connection pool from 5 to 15 connections for concurrent authentication load
+  - **Smart Transaction Usage**: Transaction management only where atomicity is required (auth endpoints with multiple operations)
+  - **Impact**: Restored high-performance concurrent authentication eliminating connection pool contention
+  - **Result**: Database concurrency bottlenecks eliminated with proper async connection management
+
 ## [2.0.25] - 2025-01-10 14:55:00 EST
 
 ### Fixed - Comprehensive PostgreSQL Transaction Management in All Authentication Endpoints
