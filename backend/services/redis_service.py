@@ -152,10 +152,17 @@ class RedisService:
         
         try:
             cache_key = self._generate_cache_key(key)
-            result = await self.redis_pool.delete(cache_key)
+            # Add timeout protection to prevent hanging on slow Redis operations
+            result = await asyncio.wait_for(
+                self.redis_pool.delete(cache_key),
+                timeout=2.0  # Match the timeout used in get() method
+            )
             logger.debug(f"Deleted cache key: {cache_key}")
             return bool(result)
             
+        except asyncio.TimeoutError:
+            logger.warning(f"Redis delete operation timed out for key {key} - skipping cache invalidation")
+            return False
         except Exception as e:
             logger.error(f"Error deleting cached data for key {key}: {e}")
             return False
