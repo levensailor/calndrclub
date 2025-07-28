@@ -2,6 +2,19 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.19] - 2025-01-10 00:25:00 EST
+
+### Enhanced - CloudWatch Log Viewer v2.0 with ECS Container Management
+- **🚀 Major Feature**: Enhanced CloudWatch Log Viewer with comprehensive ECS container management
+  - **ECS Dashboard**: Real-time display of cluster, service, task information, and container status
+  - **Container Restart**: One-click ECS service restart with force deployment and confirmation
+  - **Auto-scroll Enhancement**: Smart auto-scroll detection with visual indicator and manual control
+  - **Live Updates**: ECS status updates every 30 seconds via WebSocket connections
+  - **Toast Notifications**: User feedback for actions, errors, and status changes
+  - **REST API**: New endpoints `/api/ecs/tasks` (GET) and `/api/ecs/restart` (POST)
+  - **Improved UI**: Color-coded status badges, responsive design, and better visual hierarchy
+  - **Perfect for**: Real-time troubleshooting, container health monitoring, and quick service management
+
 ## [2.0.18] - 2025-01-09 23:59:00 EST
 
 ### Fixed - 405 Method Not Allowed for Custody PUT Requests
