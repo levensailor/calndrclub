@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.16] - 2025-01-09 23:15:00 EST
+
+### Added - Real-time CloudWatch Log Viewer Tool
+- **🔍 Development Tool**: Created CloudWatch Log Viewer for real-time staging log monitoring
+  - Real-time websocket streaming of ECS logs from CloudWatch log group `/ecs/calndr-staging`
+  - Modern web interface with terminal-style display and color-coded log levels
+  - Health check filtering toggle to hide/show GET /health events  
+  - Auto-reconnection and auto-scroll functionality
+  - Simple startup script with dependency checking and AWS credential validation
+  - Eliminates need to navigate AWS console for troubleshooting during prototype development
+  - Available at http://localhost:8001 when running `./logs-viewer/run.sh`
+
 ## [2.0.15] - 2025-01-09 22:56:07 EST
 
 ### Fixed - Git Security: Removed Sensitive Configuration Files from Tracking
