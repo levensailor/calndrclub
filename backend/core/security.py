@@ -82,15 +82,32 @@ async def get_current_user(token: str = Depends(oauth2_scheme)):
             print(f"🔐❌ Backend: Invalid UUID format for user_id '{user_id}': {e}")
             raise credentials_exception
         
-        query = users.select().where(users.c.id == user_uuid)
-        user = await database.fetch_one(query)
-        
-        if user is None:
-            print(f"🔐❌ Backend: User {user_id} not found in database")
-            raise credentials_exception
-        
-        print(f"🔐✅ Backend: User {user_id} authenticated successfully")
-        return user
+        # Add transaction management and retry logic for PostgreSQL transaction errors
+        max_retries = 2
+        for attempt in range(max_retries + 1):
+            try:
+                # Use explicit transaction for database operations
+                async with database.transaction():
+                    query = users.select().where(users.c.id == user_uuid)
+                    user = await database.fetch_one(query)
+                
+                if user is None:
+                    print(f"🔐❌ Backend: User {user_id} not found in database")
+                    raise credentials_exception
+                
+                print(f"🔐✅ Backend: User {user_id} authenticated successfully")
+                return user
+                
+            except Exception as db_error:
+                error_str = str(db_error).lower()
+                
+                # Handle PostgreSQL transaction abort errors with retry
+                if "current transaction is aborted" in error_str and attempt < max_retries:
+                    print(f"🔐⚠️ Backend: PostgreSQL transaction aborted, retrying user lookup (attempt {attempt + 1}/{max_retries + 1})")
+                    continue
+                else:
+                    # Re-raise the error if it's not a transaction abort or we've exhausted retries
+                    raise db_error
         
     except Exception as e:
         print(f"🔐❌ Backend: Database error during user lookup: {e}")
