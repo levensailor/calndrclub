@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.22] - 2025-01-10 13:32:00 EST
+
+### Fixed - Google OAuth Timeout Causing 504 Gateway Timeout Errors
+- **🔧 Critical Fix**: Resolved Google iOS login timing out after 30+ seconds causing 504 errors
+  - **Problem**: Google token verification making slow external calls to fetch public keys without timeout
+  - **Solution**: Added 20-second timeout protection for Google's id_token.verify_oauth2_token()
+  - **Implementation**: Wrapped synchronous Google API call in async executor with asyncio.wait_for()
+  - **Error Handling**: Specific timeout exceptions with user-friendly error messages
+  - **Impact**: Google OAuth authentication now fails fast instead of hanging indefinitely
+  - **User Experience**: Clear "service temporarily unavailable" message vs generic 504 timeout
+  - **Result**: iOS users can authenticate reliably even during Google service slowdowns
+
 ## [2.0.21] - 2025-01-10 12:40:00 EST
 
 ### Fixed - Critical Database Parameter Binding Error in Custody Endpoints
