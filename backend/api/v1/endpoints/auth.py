@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime
 import uuid
+import asyncio
 
 from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
@@ -284,7 +285,14 @@ async def google_ios_login(request: Request):
 
     try:
         # The library will fetch Google's public keys to verify the signature
-        idinfo = id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+        # Wrap in asyncio.wait_for to prevent hanging on slow Google API responses
+        idinfo = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                None, 
+                lambda: id_token.verify_oauth2_token(token, requests.Request(), settings.GOOGLE_CLIENT_ID)
+            ),
+            timeout=20.0  # 20 second timeout for Google token verification
+        )
         
         email = idinfo.get("email")
         if not email:
@@ -319,6 +327,9 @@ async def google_ios_login(request: Request):
                                                  "family_id": uuid_to_string(family_id)})
         return {"access_token": access_token, "token_type": "bearer"}
 
+    except asyncio.TimeoutError:
+        logger.error("Google iOS login failed: Google token verification timed out after 20 seconds")
+        raise HTTPException(status_code=504, detail="Google authentication service temporarily unavailable. Please try again.")
     except Exception as e:
         logger.error(f"Google iOS login failed during token verification: {e}")
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
