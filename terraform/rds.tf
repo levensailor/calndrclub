@@ -19,6 +19,11 @@ resource "aws_db_parameter_group" "main" {
   }
 
   parameter {
+    name  = "rds.force_ssl"
+    value = "0"
+  }
+
+  parameter {
     name  = "log_disconnections"
     value = "1"
   }
@@ -99,7 +104,7 @@ resource "aws_db_instance" "main" {
   # Network configuration
   db_subnet_group_name   = aws_db_subnet_group.main.name
   vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
+  publicly_accessible    = true
 
   # High availability and backup
   multi_az               = var.environment == "production" ? true : false
@@ -148,7 +153,7 @@ resource "aws_db_instance" "read_replica" {
 
   # Network configuration (can be in different AZ)
   vpc_security_group_ids = [aws_security_group.rds.id]
-  publicly_accessible    = false
+  publicly_accessible    = true
 
   # Monitoring
   monitoring_interval = 60

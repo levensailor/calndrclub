@@ -10,16 +10,22 @@ import asyncpg
 import os
 import time
 from datetime import datetime
+from urllib.parse import quote_plus
 
 # Database connection configuration
-DB_HOST = os.getenv('DB_HOST', 'localhost')
-DB_PORT = os.getenv('DB_PORT', '5432')
-DB_USER = os.getenv('DB_USER', 'postgres')
-DB_PASSWORD = os.getenv('DB_PASSWORD', '')
-DB_NAME = os.getenv('DB_NAME', 'calndr')
+DB_USER = "calndr_user"
+DB_PASSWORD = "MChksLq[i2W4OEkxAC8dPKVNzPpaNgI!"
+DB_HOST = "calndr-staging-db.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com"
+DB_PORT = 5432
+DB_NAME = "calndr"
 
-# Connection string
-DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+# URL encode the password to handle special characters
+DB_PASSWORD_ENCODED = quote_plus(DB_PASSWORD)
+
+# Connection string with properly encoded password
+DATABASE_URL = f"postgresql://{DB_USER}:{DB_PASSWORD_ENCODED}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+
+print(f"🔌 Connecting to: {DB_USER}@{DB_HOST}:{DB_PORT}/{DB_NAME}")
 
 # Indexes to create for custody performance optimization
 CUSTODY_INDEXES = [
@@ -137,16 +143,51 @@ async def analyze_query_performance(conn):
     except Exception as e:
         print(f"   ⚠️  Could not analyze query: {e}")
 
+async def test_connection():
+    """Test database connection before running optimization."""
+    try:
+        print("🔍 Testing database connection...")
+        conn = await asyncpg.connect(DATABASE_URL)
+        
+        # Test basic query
+        result = await conn.fetchval('SELECT 1')
+        if result == 1:
+            print("✅ Database connection test successful!")
+        else:
+            print("❌ Database connection test failed!")
+            return False
+            
+        # Test table access
+        custody_count = await conn.fetchval('SELECT COUNT(*) FROM custody')
+        users_count = await conn.fetchval('SELECT COUNT(*) FROM users')
+        print(f"📊 Found {custody_count} custody records and {users_count} users")
+        
+        await conn.close()
+        return True
+        
+    except Exception as e:
+        print(f"❌ Database connection failed: {e}")
+        print("\n🔧 Troubleshooting tips:")
+        print("   • Check if database host is reachable")
+        print("   • Verify username and password are correct")
+        print("   • Ensure database name exists")
+        print("   • Check if SSL is required")
+        return False
+
 async def main():
     """Main function to optimize custody query performance."""
     print("🚀 Starting Custody Performance Optimization")
     print("=" * 80)
     
+    # Test connection first
+    if not await test_connection():
+        print("\n❌ Connection test failed. Please fix connection issues before proceeding.")
+        return False
+    
     try:
         # Connect to database
-        print(f"🔌 Connecting to database at {DB_HOST}:{DB_PORT}/{DB_NAME}...")
+        print(f"\n🔌 Connecting to database for optimization...")
         conn = await asyncpg.connect(DATABASE_URL)
-        print("✅ Connected successfully!")
         
         # Show current indexes
         await show_existing_indexes(conn)
@@ -178,6 +219,7 @@ async def main():
         
     except Exception as e:
         print(f"❌ Error during optimization: {e}")
+        print(f"📋 Full error details: {repr(e)}")
         return False
     finally:
         if 'conn' in locals():
