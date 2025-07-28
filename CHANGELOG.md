@@ -2,6 +2,20 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.25] - 2025-01-10 14:55:00 EST
+
+### Fixed - Comprehensive PostgreSQL Transaction Management in All Authentication Endpoints
+- **🔧 Critical System-Wide Fix**: Resolved PostgreSQL transaction abort errors by implementing comprehensive transaction management across all authentication endpoints
+  - **Problem**: Multiple authentication endpoints performing sequential database operations without transaction management causing connection pool contamination
+  - **Affected Operations**: User login, registration, Google OAuth (callback & iOS), Apple auth - all performing multi-step database operations
+  - **Root Cause**: Any failed authentication operation leaving connections in aborted transaction state affecting subsequent get_current_user calls throughout the system  
+  - **Comprehensive Solution**: Wrapped ALL authentication database operations in explicit transactions using 'async with database.transaction()'
+  - **Enhanced Error Handling**: Added specific database error logging while preserving HTTP exception behavior (401, 409)
+  - **Transaction Isolation**: Ensures atomicity for multi-step operations (user creation, family creation, updates) with automatic rollback
+  - **Connection Pool Health**: Prevents transaction state contamination between requests through proper cleanup
+  - **Impact**: Complete elimination of PostgreSQL transaction abort errors system-wide with robust authentication reliability
+  - **Result**: Authentication operations now fully isolated with automatic transaction cleanup preventing connection pool corruption
+
 ## [2.0.24] - 2025-01-10 14:00:00 EST
 
 ### Fixed - PostgreSQL Transaction Abort Error in User Authentication  
