@@ -231,4 +231,176 @@ async def get_performance_stats(current_user = Depends(get_current_user)):
         
     except Exception as e:
         logger.error(f"❌ Error getting performance stats: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") 
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/", response_model=CustodyResponse)
+async def create_custody(custody_data: CustodyRecord, current_user = Depends(get_current_user)):
+    """
+    Creates a new custody record for a specific date.
+    Returns 409 Conflict if a record already exists for the date.
+    """
+    logger.info(f"📝 Received custody CREATE request: {custody_data.model_dump_json(indent=2)}")
+    
+    family_id = current_user['family_id']
+    actor_id = current_user['id']
+    
+    try:
+        # Check if a record already exists for this date
+        existing_record_query = custody.select().where(
+            (custody.c.family_id == family_id) &
+            (custody.c.date == custody_data.date)
+        )
+        existing_record = await database.fetch_one(existing_record_query)
+        
+        if existing_record:
+            logger.warning(f"❌ Custody record already exists for date {custody_data.date}")
+            raise HTTPException(
+                status_code=409, 
+                detail=f"Custody record already exists for date {custody_data.date}. Use PUT to update."
+            )
+        
+        # Determine handoff_day value
+        handoff_day_value = custody_data.handoff_day
+        if handoff_day_value is None and custody_data.handoff_time is not None:
+            handoff_day_value = True
+        elif handoff_day_value is None:
+            # Default logic: check if previous day has different custodian
+            previous_date = custody_data.date - timedelta(days=1)
+            previous_record = await database.fetch_one(
+                custody.select().where(
+                    (custody.c.family_id == family_id) &
+                    (custody.c.date == previous_date)
+                )
+            )
+            if previous_record and previous_record['custodian_id'] != custody_data.custodian_id:
+                handoff_day_value = True
+                logger.info(f"🔄 Detected custodian change from previous day, setting handoff_day=True")
+            else:
+                handoff_day_value = False
+
+        logger.info(f"⚡ Creating new custody record for {custody_data.date}")
+        
+        # Insert new record
+        insert_query = custody.insert().values(
+            family_id=family_id,
+            date=custody_data.date,
+            custodian_id=custody_data.custodian_id,
+            actor_id=actor_id,
+            handoff_day=handoff_day_value,
+            handoff_time=datetime.strptime(custody_data.handoff_time, '%H:%M').time() if custody_data.handoff_time else None,
+            handoff_location=custody_data.handoff_location,
+            created_at=datetime.now()
+        )
+        record_id = await database.execute(insert_query)
+            
+        # Invalidate cache for this month
+        cache_key = f"custody_opt:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
+        await redis_service.delete(cache_key)
+        
+        # Also invalidate handoff-only cache
+        handoff_cache_key = f"handoff_only:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
+        await redis_service.delete(handoff_cache_key)
+        
+        logger.info(f"🗑️ Invalidated caches for family {family_id} month {custody_data.date.year}/{custody_data.date.month}")
+            
+        # Get custodian name for response
+        custodian_user = await database.fetch_one(users.select().where(users.c.id == custody_data.custodian_id))
+        custodian_name = custodian_user['first_name'] if custodian_user else "Unknown"
+
+        logger.info(f"✅ Successfully created custody record for {custody_data.date}")
+
+        return CustodyResponse(
+            id=record_id,
+            event_date=str(custody_data.date),
+            content=custodian_name,
+            custodian_id=uuid_to_string(custody_data.custodian_id),
+            handoff_day=handoff_day_value,
+            handoff_time=custody_data.handoff_time,
+            handoff_location=custody_data.handoff_location
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error creating custody record: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error while creating custody: {e}")
+
+@router.put("/date/{custody_date}", response_model=CustodyResponse)
+async def update_custody_by_date(custody_date: date, custody_data: CustodyRecord, current_user = Depends(get_current_user)):
+    """
+    Updates an existing custody record for a specific date.
+    Returns 404 if no record exists for the date.
+    """
+    logger.info(f"🔄 Received custody UPDATE request for {custody_date}: {custody_data.model_dump_json(indent=2)}")
+    
+    family_id = current_user['family_id']
+    actor_id = current_user['id']
+    
+    try:
+        # Check if record exists for this date
+        existing_record_query = custody.select().where(
+            (custody.c.family_id == family_id) &
+            (custody.c.date == custody_date)
+        )
+        existing_record = await database.fetch_one(existing_record_query)
+        
+        if not existing_record:
+            logger.warning(f"❌ No custody record found for date {custody_date} in family {family_id}")
+            raise HTTPException(status_code=404, detail=f"No custody record found for date {custody_date}")
+        
+        # Determine handoff_day value
+        handoff_day_value = custody_data.handoff_day
+        if handoff_day_value is None and custody_data.handoff_time is not None:
+            handoff_day_value = True
+        elif handoff_day_value is None:
+            handoff_day_value = False
+        
+        logger.info(f"⚡ Updating custody record {existing_record['id']} for date {custody_date}")
+        
+        # Update the existing record
+        update_query = custody.update().where(custody.c.id == existing_record['id']).values(
+            custodian_id=custody_data.custodian_id,
+            actor_id=actor_id,
+            handoff_day=handoff_day_value,
+            handoff_time=datetime.strptime(custody_data.handoff_time, '%H:%M').time() if custody_data.handoff_time else None,
+            handoff_location=custody_data.handoff_location
+        )
+        await database.execute(update_query)
+        
+        # Invalidate cache for this month
+        cache_key = f"custody_opt:family:{family_id}:{custody_date.year}:{custody_date.month:02d}"
+        await redis_service.delete(cache_key)
+        
+        # Also invalidate handoff-only cache
+        handoff_cache_key = f"handoff_only:family:{family_id}:{custody_date.year}:{custody_date.month:02d}"
+        await redis_service.delete(handoff_cache_key)
+        
+        logger.info(f"🗑️ Invalidated caches for family {family_id} month {custody_date.year}/{custody_date.month}")
+        
+        # Get updated record to return
+        updated_record_query = custody.select().where(custody.c.id == existing_record['id'])
+        updated_record = await database.fetch_one(updated_record_query)
+        
+        # Get custodian name
+        custodian_query = users.select().where(users.c.id == updated_record['custodian_id'])
+        custodian = await database.fetch_one(custodian_query)
+        
+        logger.info(f"✅ Successfully updated custody record for {custody_date}")
+        
+        return CustodyResponse(
+            id=updated_record['id'],
+            event_date=str(updated_record['date']),
+            content=custodian['first_name'] if custodian else "Unknown",
+            custodian_id=uuid_to_string(updated_record['custodian_id']),
+            handoff_day=updated_record['handoff_day'],
+            handoff_time=updated_record['handoff_time'].strftime('%H:%M') if updated_record['handoff_time'] else None,
+            handoff_location=updated_record['handoff_location']
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Error updating custody record for {custody_date}: {e}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error while updating custody: {e}") 
