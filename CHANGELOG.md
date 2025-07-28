@@ -2,6 +2,16 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.17] - 2025-01-09 23:30:00 EST
+
+### Fixed - Container Log Buffering in CloudWatch
+- **🔧 Critical Fix**: Resolved Python/Gunicorn log buffering preventing real-time logs in CloudWatch
+  - Added Gunicorn flags: `--log-level info`, `--capture-output`, `--enable-stdio-inheritance`
+  - Added `PYTHONIOENCODING=utf-8` environment variable for proper log encoding
+  - Logs now appear immediately in CloudWatch instead of being buffered until container restart
+  - Essential for real-time troubleshooting and monitoring in ECS staging environment
+  - Works in conjunction with the new CloudWatch Log Viewer tool for optimal debugging experience
+
 ## [2.0.16] - 2025-01-09 23:15:00 EST
 
 ### Added - Real-time CloudWatch Log Viewer Tool
