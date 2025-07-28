@@ -2,6 +2,19 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.24] - 2025-01-10 14:00:00 EST
+
+### Fixed - PostgreSQL Transaction Abort Error in User Authentication  
+- **🔧 Critical Fix**: Resolved PostgreSQL "current transaction is aborted, commands ignored until end of transaction block" errors
+  - **Problem**: Database operations using implicit transactions without proper error handling causing authentication failures
+  - **Symptoms**: Random 401 authentication errors, cascade 504 Gateway Timeout errors, database connection pool issues
+  - **Root Cause**: get_current_user() function lacked explicit transaction management and retry logic for PostgreSQL transaction abort scenarios
+  - **Solution**: Added explicit transaction wrapping using 'async with database.transaction()' and retry logic (3 attempts max)
+  - **Error Detection**: Specific handling for PostgreSQL transaction abort error pattern with automatic recovery
+  - **Connection Recovery**: Proper transaction cleanup and connection state recovery for connection pool health
+  - **Impact**: Robust authentication with automatic transaction error recovery eliminating random auth failures
+  - **Result**: Authentication reliability restored with graceful handling of PostgreSQL transaction state issues
+
 ## [2.0.23] - 2025-01-10 13:39:00 EST
 
 ### Fixed - Redis Cache Delete Operations Hanging Causing 504 Custody Update Timeouts
