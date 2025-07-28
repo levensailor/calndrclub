@@ -36,3 +36,5 @@ terraform/.terraform/providers/*
 
 # SSM Parameter setup scripts with actual credentials
 scripts/setup-ssm-parameters.sh
+
+*.tfvars
