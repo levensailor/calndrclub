@@ -230,14 +230,18 @@ async def get_custody_records_optimized(year: int, month: int, current_user = De
             u.first_name as custodian_name
         FROM custody c
         JOIN users u ON c.custodian_id = u.id
-        WHERE c.family_id = $1 
-        AND c.date >= $2 
-        AND c.date <= $3
+        WHERE c.family_id = :family_id 
+        AND c.date >= :start_date 
+        AND c.date <= :end_date
         ORDER BY c.date ASC
         """
         
         start_time = datetime.now()
-        db_records = await database.fetch_all(query, family_id, start_date, end_date)
+        db_records = await database.fetch_all(query, {
+            'family_id': family_id,
+            'start_date': start_date,
+            'end_date': end_date
+        })
         query_duration = (datetime.now() - start_time).total_seconds()
         
         logger.info(f"⚡ Database query completed in {query_duration:.3f}s ({len(db_records)} records)")
@@ -316,16 +320,20 @@ async def get_handoff_times_only(year: int, month: int, current_user = Depends(g
             u.first_name as custodian_name
         FROM custody c
         JOIN users u ON c.custodian_id = u.id
-        WHERE c.family_id = $1 
-        AND c.date >= $2 
-        AND c.date <= $3
+        WHERE c.family_id = :family_id 
+        AND c.date >= :start_date 
+        AND c.date <= :end_date
         AND c.handoff_day = true
         AND c.handoff_time IS NOT NULL
         ORDER BY c.date ASC
         """
         
         start_time = datetime.now()
-        db_records = await database.fetch_all(query, family_id, start_date, end_date)
+        db_records = await database.fetch_all(query, {
+            'family_id': family_id,
+            'start_date': start_date,
+            'end_date': end_date
+        })
         query_duration = (datetime.now() - start_time).total_seconds()
         
         logger.info(f"⚡ Handoff-only query completed in {query_duration:.3f}s ({len(db_records)} records)")
@@ -378,10 +386,10 @@ async def get_performance_stats(current_user = Depends(get_current_user)):
             MIN(date) as earliest_date,
             MAX(date) as latest_date
         FROM custody 
-        WHERE family_id = $1
+        WHERE family_id = :family_id
         """
         
-        db_stats = await database.fetch_one(db_stats_query, family_id)
+        db_stats = await database.fetch_one(db_stats_query, {'family_id': family_id})
         
         return {
             "family_id": str(family_id),
