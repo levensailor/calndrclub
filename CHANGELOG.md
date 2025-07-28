@@ -2,6 +2,19 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.20] - 2025-01-10 00:49:00 EST
+
+### Enhanced - Container Lifecycle Tracking in CloudWatch Log Viewer
+- **🔄 Major Feature**: Real-time container lifecycle event monitoring and tracking
+  - **Auto-Detection**: Automatically detects new containers being spun up when old ones error
+  - **Event Timeline**: Collapsible container events panel with live updates and color coding
+  - **Status Tracking**: Monitors container state changes (PENDING → RUNNING → STOPPED)
+  - **Error Recovery**: Highlights containers that fail and get automatically replaced by ECS
+  - **Toast Notifications**: Immediate user feedback for all container lifecycle events
+  - **Event History**: Maintains last 20 container events with timestamps and task IDs
+  - **Faster Polling**: Enhanced monitoring with 15-second ECS status updates
+  - **Perfect for**: Debugging container stability, monitoring deployments, tracking restart patterns
+
 ## [2.0.19] - 2025-01-10 00:25:00 EST
 
 ### Enhanced - CloudWatch Log Viewer v2.0 with ECS Container Management
