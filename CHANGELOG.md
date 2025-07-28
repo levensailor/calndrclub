@@ -2,6 +2,14 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.15] - 2025-01-09 22:56:07 EST
+
+### Fixed - Git Security: Removed Sensitive Configuration Files from Tracking
+- **🔒 Security Enhancement**: Added *.tfvars pattern to .gitignore to prevent tracking sensitive terraform configuration
+  - Removed terraform/production.tfvars and terraform/staging.tfvars from git tracking
+  - Files remain on disk but are now properly ignored by git to prevent accidental exposure of credentials
+  - Prevents GitHub Push Protection alerts and potential security vulnerabilities
+
 ## [2.0.14] - 2024-12-20 17:00:00 EST
 
 ### Fixed - Critical Performance Issue: Handoff Times Loading
