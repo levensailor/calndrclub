@@ -1,51 +1,45 @@
 # Google OAuth Setup for Calndr
 
-This document explains how to properly configure Google OAuth for both the iOS app and backend API.
+This document explains how to properly configure Google OAuth for the iOS app and backend API.
 
-## 🔐 OAuth Client Types
+## 🔐 OAuth Client Configuration
 
-Google OAuth requires **different client types** for different parts of your application:
+For your iOS app + Python backend setup, you **only need ONE client ID**:
 
-### 1. **iOS App Client** (Already Created ✅)
+### **iOS App Client** (Already Created ✅)
 - **Type**: iOS Application
 - **Client ID**: `427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com`
 - **Client Secret**: ❌ **None** (iOS apps don't use secrets for security)
-- **Used by**: Your iOS mobile application
-- **Purpose**: User authentication in the mobile app
+- **Used by**: 
+  - ✅ Your iOS mobile application (for getting ID tokens)
+  - ✅ Your FastAPI backend server (for verifying those same ID tokens)
+- **Purpose**: Complete OAuth flow from iOS app authentication to backend token verification
 
-### 2. **Backend API Client** (❗ **Need to Create**)
-- **Type**: Web Application
-- **Client ID**: `[NEW_WEB_CLIENT_ID]` (You need to create this)
-- **Client Secret**: `[NEW_WEB_CLIENT_SECRET]` (You'll get this when created)
-- **Used by**: Your FastAPI backend server
-- **Purpose**: Server-side OAuth token verification and user info retrieval
+## 🔄 How It Works
+
+1. **iOS app** uses the iOS Client ID to authenticate with Google and get an ID token
+2. **iOS app** sends that ID token to your backend API
+3. **Backend** verifies the token using the **same iOS Client ID** that created it
+
+**❌ You do NOT need a separate "Web Application" client ID for the backend!**
 
 ## 📋 Setup Instructions
 
-### Step 1: Create Web Application OAuth Client
+### Step 1: Use Your Existing iOS Client ID
 
-1. **Go to [Google Cloud Console](https://console.cloud.google.com/)**
-2. **Navigate to**: APIs & Services → Credentials
-3. **Click**: "+ CREATE CREDENTIALS" → "OAuth 2.0 Client ID"
-4. **Select**: "Web application"
-5. **Configure**:
-   - **Name**: "Calndr Backend API"
-   - **Authorized redirect URIs**:
-     - `https://calndr.club/api/v1/auth/google/callback` (Production)
-     - `https://staging.calndr.club/api/v1/auth/google/callback` (Staging)
-     - `http://localhost:8000/api/v1/auth/google/callback` (Development - optional)
+Since you already have the iOS Client ID working, **you're done!** Just make sure your backend is configured with the same iOS Client ID.
 
-### Step 2: Update Backend Configuration
+### Step 2: Backend Configuration
 
-After creating the web client, update your configuration:
+Your backend should use the **same iOS Client ID** for token verification:
 
 #### A. Update Terraform Variables
 ```bash
 # Edit terraform/production.tfvars
-google_client_id = "YOUR_NEW_WEB_CLIENT_ID"
+google_client_id = "427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com"
 
 # Edit terraform/staging.tfvars  
-google_client_id = "YOUR_NEW_WEB_CLIENT_ID"
+google_client_id = "427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com"
 ```
 
 #### B. Update SSM Parameters Script
@@ -64,25 +58,23 @@ cd terraform
 terraform apply -var-file="production.tfvars"
 ```
 
-### Step 3: Update iOS App (if needed)
+### Step 3: Verify iOS App Configuration
 
-Your iOS app should continue using the **original iOS Client ID**:
+Your iOS app should continue using the **same iOS Client ID**:
 - **iOS Client ID**: `427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com`
-- **Backend Client ID**: `[YOUR_NEW_WEB_CLIENT_ID]`
+- **Backend Client ID**: **Same as iOS** (`427740229486-irmioidbvts681onsl3crtfghlmmsjhq.apps.googleusercontent.com`)
 
 ## 🔄 OAuth Flow Explanation
 
-### Current Issue
+### How It Actually Works
 ```
-iOS App (iOS Client ID) → Backend API (❌ Missing Web Client)
-                           ↳ Trying to verify with wrong client type
+iOS App (iOS Client ID) → Gets ID Token from Google
+                           ↓
+iOS App → Sends ID Token → Backend API (Same iOS Client ID)
+                           ↳ Verifies token using same client ID
 ```
 
-### Correct Flow
-```
-iOS App (iOS Client ID) → Backend API (✅ Web Client + Secret)
-                           ↳ Properly verifies ID tokens
-```
+### ✅ This is the CORRECT and SECURE approach!
 
 ## 🛠️ Authentication Endpoints
 
