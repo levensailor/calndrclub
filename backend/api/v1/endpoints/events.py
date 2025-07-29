@@ -36,64 +36,38 @@ async def get_events_by_month(year: int, month: int, current_user = Depends(get_
         logger.info(f"Returning cached events for {year}/{month}")
         return cached_events
     
+    # Since family_all_events view doesn't exist, use direct events table query
+    # This avoids transaction abort from failed view query
     try:
-        # Try to use the family_all_events view first
-        query = """
-            SELECT 
-                id,
-                event_date,
-                title as content,
-                description,
-                event_type,
-                start_time,
-                end_time,
-                all_day,
-                source_type,
-                provider_id,
-                provider_name
-            FROM family_all_events
-            WHERE family_id = :family_id
-            AND event_date BETWEEN :start_date AND :end_date
-            ORDER BY event_date, start_time
-        """
-        
-        db_events = await database.fetch_all(
-            query, 
-            {
-                'family_id': current_user['family_id'],
-                'start_date': start_date,
-                'end_date': end_date
-            }
-        )
+        async with database.transaction():
+            # Use the traditional events table query directly
+            query = events.select().where(
+                (events.c.family_id == current_user['family_id']) &
+                (events.c.date.between(start_date, end_date)) &
+                (events.c.event_type != 'custody')  # Exclude custody events
+            )
+            raw_events = await database.fetch_all(query)
+            
+            # Convert to expected format for frontend compatibility
+            db_events = []
+            for event in raw_events:
+                db_events.append({
+                    'id': event['id'],
+                    'event_date': event['date'],
+                    'content': event['content'],
+                    'description': None,
+                    'event_type': event['event_type'],
+                    'start_time': None,
+                    'end_time': None,
+                    'all_day': False,
+                    'source_type': 'family',
+                    'provider_id': None,
+                    'provider_name': None
+                })
+                
     except Exception as e:
-        # Fallback to legacy events table if view doesn't exist
-        logger.warning(f"family_all_events view not available, using fallback query: {e}")
-        
-        # Use the traditional events table query
-        query = events.select().where(
-            (events.c.family_id == current_user['family_id']) &
-            (events.c.date.between(start_date, end_date)) &
-            (events.c.event_type != 'custody')  # Exclude custody events
-        )
-        db_events = await database.fetch_all(query)
-        
-        # Convert to expected format for legacy events
-        legacy_events = []
-        for event in db_events:
-            legacy_events.append({
-                'id': event['id'],
-                'event_date': event['date'],
-                'content': event['content'],
-                'description': None,
-                'event_type': event['event_type'],
-                'start_time': None,
-                'end_time': None,
-                'all_day': False,
-                'source_type': 'family',
-                'provider_id': None,
-                'provider_name': None
-            })
-        db_events = legacy_events
+        logger.error(f"Error fetching events for month {year}-{month}: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving events")
     
     # Convert events to the format expected by frontend
     frontend_events = []
@@ -164,64 +138,38 @@ async def get_events_by_date_range(
         logger.info(f"Returning cached events for date range {start_date} to {end_date}")
         return cached_events
     
+    # Since family_all_events view doesn't exist, use direct events table query
+    # This avoids transaction abort from failed view query
     try:
-        # Try to use the family_all_events view first
-        query = """
-            SELECT 
-                id,
-                event_date,
-                title as content,
-                description,
-                event_type,
-                start_time,
-                end_time,
-                all_day,
-                source_type,
-                provider_id,
-                provider_name
-            FROM family_all_events
-            WHERE family_id = :family_id
-            AND event_date BETWEEN :start_date AND :end_date
-            ORDER BY event_date, start_time
-        """
-        
-        db_events = await database.fetch_all(
-            query, 
-            {
-                'family_id': current_user['family_id'],
-                'start_date': start_date_obj,
-                'end_date': end_date_obj
-            }
-        )
+        async with database.transaction():
+            # Use the traditional events table query directly
+            query = events.select().where(
+                (events.c.family_id == current_user['family_id']) &
+                (events.c.date.between(start_date_obj, end_date_obj)) &
+                (events.c.event_type != 'custody')  # Exclude custody events
+            )
+            raw_events = await database.fetch_all(query)
+            
+            # Convert to expected format for frontend compatibility
+            db_events = []
+            for event in raw_events:
+                db_events.append({
+                    'id': event['id'],
+                    'event_date': event['date'],
+                    'content': event['content'],
+                    'description': None,
+                    'event_type': event['event_type'],
+                    'start_time': None,
+                    'end_time': None,
+                    'all_day': False,
+                    'source_type': 'family',
+                    'provider_id': None,
+                    'provider_name': None
+                })
+                
     except Exception as e:
-        # Fallback to legacy events table if view doesn't exist
-        logger.warning(f"family_all_events view not available, using fallback query: {e}")
-        
-        # Use the traditional events table query
-        query = events.select().where(
-            (events.c.family_id == current_user['family_id']) &
-            (events.c.date.between(start_date_obj, end_date_obj)) &
-            (events.c.event_type != 'custody')  # Exclude custody events
-        )
-        db_events = await database.fetch_all(query)
-        
-        # Convert to expected format for legacy events
-        legacy_events = []
-        for event in db_events:
-            legacy_events.append({
-                'id': event['id'],
-                'event_date': event['date'],
-                'content': event['content'],
-                'description': None,
-                'event_type': event['event_type'],
-                'start_time': None,
-                'end_time': None,
-                'all_day': False,
-                'source_type': 'family',
-                'provider_id': None,
-                'provider_name': None
-            })
-        db_events = legacy_events
+        logger.error(f"Error fetching events for date range: {e}")
+        raise HTTPException(status_code=500, detail="Error retrieving events")
     
     # Convert events to the format expected by iOS app
     frontend_events = []
