@@ -2,6 +2,21 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2.0.27] - 2025-01-10 20:56:00 EST
+
+### Fixed - Events Endpoint Transaction Abort from Missing Database View
+- **🔧 Critical Database Fix**: Resolved events API transaction abort errors from non-existent database view dependency
+  - **Problem**: Events endpoints querying non-existent 'family_all_events' database view causing transaction aborts
+  - **Symptom**: First query fails → transaction aborts → fallback query runs on aborted connection → 'current transaction is aborted' errors
+  - **Impact**: 400 Bad Request responses breaking iOS app events functionality, middleware reporting 'Malformed request' errors
+  - **Root Cause**: Missing database view + poor error handling allowing transaction contamination between query attempts
+  - **Solution**: Removed dependency on missing view, direct events table query with proper transaction isolation
+  - **Transaction Management**: Single clean transaction per endpoint eliminating connection state contamination
+  - **Error Handling**: Proper HTTP 500 responses instead of transaction abort scenarios
+  - **Backward Compatibility**: Maintained frontend-compatible event data structure for iOS app
+  - **Performance**: Cleaner query path without unnecessary view lookup attempts
+  - **Result**: Events API restored with reliable transaction management eliminating abort scenarios
+
 ## [2.0.26] - 2025-01-10 15:18:00 EST
 
 ### Fixed - Database Concurrency Bottleneck from Transaction Over-Use
