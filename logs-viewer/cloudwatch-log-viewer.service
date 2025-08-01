@@ -1,0 +1,33 @@
+[Unit]
+Description=CloudWatch Log Viewer for Calndr Staging
+Documentation=https://github.com/your-repo/calndr-backend-refactor
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=levensailor
+Group=levensailor
+WorkingDirectory=/Users/levensailor/Dev/calndr-backend-refactor/logs-viewer
+Environment=PATH=/Users/levensailor/Dev/calndr-backend-refactor/logs-viewer/venv/bin
+ExecStart=/Users/levensailor/Dev/calndr-backend-refactor/logs-viewer/venv/bin/python cloudwatch_log_streamer.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudwatch-log-viewer
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/Users/levensailor/Dev/calndr-backend-refactor/logs-viewer/logs
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=512M
+
+[Install]
+WantedBy=multi-user.target 

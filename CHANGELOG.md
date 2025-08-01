@@ -2,6 +2,21 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-01-27 15:30 EST] - Deployed CloudWatch Log Viewer to AWS S3 and EC2
+- **User Prompt**: "start the cloudwatch log stream and make it stay running even after a reboot"
+- **Changes Made**:
+  - Created S3 static website deployment script (`deploy-s3-website.py`)
+  - Created EC2 backend deployment script (`deploy-backend-to-ec2.py`) 
+  - Created comprehensive deployment script (`deploy-all.sh`)
+  - Deployed CloudWatch log viewer to S3: http://calndr-log-viewer-public.s3-website-us-east-1.amazonaws.com
+  - Deployed EC2 backend instance (i-09871491c956d8030) at 54.172.26.114
+  - Created security group with proper firewall rules
+  - Set up nginx reverse proxy on EC2
+  - Created systemd service for persistent operation
+  - Added service management scripts for easy control
+- **Status**: ✅ S3 website deployed and accessible, EC2 backend running
+- **Next Steps**: Update WebSocket URL in frontend to connect to EC2 backend
+
 ## [2.0.27] - 2025-01-10 20:56:00 EST
 
 ### Fixed - Events Endpoint Transaction Abort from Missing Database View

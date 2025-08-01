@@ -329,43 +329,131 @@ class CloudWatchLogStreamer:
         return any(pattern.lower() in log_lower for pattern in health_patterns)
     
     async def get_recent_logs(self) -> list:
-        """Get recent logs from CloudWatch"""
+        """Get recent logs from CloudWatch for currently running containers"""
         try:
+            # Get log streams for currently running containers
+            current_streams = await self.get_current_log_streams()
+            
             # Get logs from the last 10 minutes
             end_time = int(time.time() * 1000)
             start_time = end_time - (10 * 60 * 1000)  # 10 minutes ago
             
-            response = self.cloudwatch_logs.filter_log_events(
-                logGroupName=LOG_GROUP_NAME,
-                startTime=start_time,
-                endTime=end_time,
-                limit=50  # Get last 50 events
-            )
+            if not current_streams:
+                logger.warning("⚠️ No current log streams found, showing recent logs from all streams")
+                # Fallback to all logs if no specific streams found
+                response = self.cloudwatch_logs.filter_log_events(
+                    logGroupName=LOG_GROUP_NAME,
+                    startTime=start_time,
+                    endTime=end_time,
+                    limit=50  # Get last 50 events
+                )
+                events = response.get('events', [])
+                events.sort(key=lambda x: x.get('timestamp', 0))
+                return events
             
-            events = response.get('events', [])
-            # Sort by timestamp (ascending)
-            events.sort(key=lambda x: x.get('timestamp', 0))
+            # Get recent logs from specific streams only
+            all_events = []
+            for stream_name in current_streams:
+                try:
+                    response = self.cloudwatch_logs.filter_log_events(
+                        logGroupName=LOG_GROUP_NAME,
+                        logStreamNames=[stream_name],
+                        startTime=start_time,
+                        endTime=end_time,
+                        limit=25  # 25 events per stream
+                    )
+                    events = response.get('events', [])
+                    all_events.extend(events)
+                    
+                    logger.info(f"📋 Got {len(events)} recent events from stream: {stream_name}")
+                    
+                except Exception as stream_error:
+                    logger.debug(f"⚠️ Recent logs - Stream {stream_name} not accessible: {stream_error}")
+                    continue
             
-            return events
+            # Sort by timestamp (ascending) and limit to last 50
+            all_events.sort(key=lambda x: x.get('timestamp', 0))
+            recent_events = all_events[-50:]  # Keep last 50 events
+            
+            logger.info(f"📋 Loaded {len(recent_events)} recent events from {len(current_streams)} active container streams")
+            
+            return recent_events
             
         except Exception as e:
             logger.error(f"❌ Error fetching recent logs: {e}")
             return []
     
-    async def get_real_time_logs(self, last_timestamp: Optional[int] = None):
-        """Get real-time logs from CloudWatch"""
+    async def get_current_log_streams(self):
+        """Get log stream names for currently running containers"""
         try:
-            # Get logs from the last minute or from last_timestamp
+            # Get currently running tasks
+            tasks = await self.ecs_manager.get_running_tasks()
+            log_streams = []
+            
+            for task in tasks:
+                task_id = task.get('taskId', '')
+                if task_id:
+                    # ECS log streams follow pattern: ecs/container_name/task_id
+                    # For calndr app, it's: ecs/calndr-app/{task_id}
+                    log_stream = f"ecs/calndr-app/{task_id}"
+                    log_streams.append(log_stream)
+                    
+            return log_streams
+            
+        except Exception as e:
+            logger.error(f"❌ Error getting current log streams: {e}")
+            return []
+
+    async def get_real_time_logs(self, last_timestamp: Optional[int] = None):
+        """Get real-time logs from CloudWatch for currently running containers only"""
+        try:
+            # Get log streams for currently running containers
+            current_streams = await self.get_current_log_streams()
+            
+            if not current_streams:
+                logger.warning("⚠️ No current log streams found, falling back to all logs")
+                # Fallback to all logs if no specific streams found
+                end_time = int(time.time() * 1000)
+                start_time = last_timestamp + 1 if last_timestamp else end_time - (60 * 1000)
+                
+                response = self.cloudwatch_logs.filter_log_events(
+                    logGroupName=LOG_GROUP_NAME,
+                    startTime=start_time,
+                    endTime=end_time
+                )
+                return response.get('events', [])
+            
+            # Get logs from specific streams only
             end_time = int(time.time() * 1000)
             start_time = last_timestamp + 1 if last_timestamp else end_time - (60 * 1000)
             
-            response = self.cloudwatch_logs.filter_log_events(
-                logGroupName=LOG_GROUP_NAME,
-                startTime=start_time,
-                endTime=end_time
-            )
+            all_events = []
+            for stream_name in current_streams:
+                try:
+                    response = self.cloudwatch_logs.filter_log_events(
+                        logGroupName=LOG_GROUP_NAME,
+                        logStreamNames=[stream_name],
+                        startTime=start_time,
+                        endTime=end_time
+                    )
+                    events = response.get('events', [])
+                    all_events.extend(events)
+                    
+                    if events:
+                        logger.debug(f"📋 Got {len(events)} events from stream: {stream_name}")
+                        
+                except Exception as stream_error:
+                    # If specific stream doesn't exist yet, continue with others
+                    logger.debug(f"⚠️ Stream {stream_name} not accessible: {stream_error}")
+                    continue
             
-            return response.get('events', [])
+            # Sort events by timestamp
+            all_events.sort(key=lambda x: x.get('timestamp', 0))
+            
+            if all_events:
+                logger.debug(f"📋 Total events from {len(current_streams)} active streams: {len(all_events)}")
+            
+            return all_events
             
         except Exception as e:
             logger.error(f"❌ Error fetching real-time logs: {e}")
@@ -498,6 +586,47 @@ async def get_ecs_tasks():
         }
     except Exception as e:
         logger.error(f"❌ Error getting ECS tasks: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/debug/streams")
+async def get_debug_streams():
+    """Get debug information about current log streams"""
+    try:
+        # Get current running tasks
+        tasks = await log_streamer.ecs_manager.get_running_tasks()
+        
+        # Get expected log streams
+        expected_streams = await log_streamer.get_current_log_streams()
+        
+        # Get actual log streams from CloudWatch
+        response = log_streamer.cloudwatch_logs.describe_log_streams(
+            logGroupName=LOG_GROUP_NAME,
+            orderBy='LastEventTime',
+            descending=True,
+            limit=20
+        )
+        
+        actual_streams = [
+            {
+                'name': stream['logStreamName'],
+                'lastEventTime': stream.get('lastEventTime', 0),
+                'creationTime': stream.get('creationTime', 0)
+            }
+            for stream in response.get('logStreams', [])
+        ]
+        
+        return {
+            'success': True,
+            'cluster': ECS_CLUSTER_NAME,
+            'service': ECS_SERVICE_NAME,
+            'running_tasks': len(tasks),
+            'tasks': tasks,
+            'expected_log_streams': expected_streams,
+            'actual_log_streams': actual_streams,
+            'timestamp': datetime.now().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"❌ Error getting debug streams: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 @app.post("/api/ecs/restart")
