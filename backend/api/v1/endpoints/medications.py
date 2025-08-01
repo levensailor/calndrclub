@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from datetime import datetime, date, time
 
-from core.database import get_db
+from core.database import database
 from core.security import get_current_user
 from db.models import medications, users
 from schemas.medication import (
@@ -34,7 +34,6 @@ async def get_medications(
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
     sort_by: str = Query("name", description="Sort by: name, start_date, created_at"),
     sort_order: str = Query("asc", description="Sort order: asc, desc"),
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -42,19 +41,32 @@ async def get_medications(
     """
     try:
         # Build query
-        query = db.query(medications).filter(
+        query = medications.select().where(
             medications.c.family_id == current_user["family_id"]
         )
         
         # Apply filters
         if is_active is not None:
-            query = query.filter(medications.c.is_active == is_active)
+            query = query.where(medications.c.is_active == is_active)
         
         if reminder_enabled is not None:
-            query = query.filter(medications.c.reminder_enabled == reminder_enabled)
+            query = query.where(medications.c.reminder_enabled == reminder_enabled)
         
         # Get total count
-        total = query.count()
+        count_query = medications.select().where(
+            medications.c.family_id == current_user["family_id"]
+        )
+        if is_active is not None:
+            count_query = count_query.where(medications.c.is_active == is_active)
+        if reminder_enabled is not None:
+            count_query = count_query.where(medications.c.reminder_enabled == reminder_enabled)
+        
+        total = await database.fetch_val(
+            f"SELECT COUNT(*) FROM medications WHERE family_id = '{current_user['family_id']}'" +
+            (f" AND is_active = {is_active}" if is_active is not None else "") +
+            (f" AND reminder_enabled = {reminder_enabled}" if reminder_enabled is not None else "")
+        )
+        total = total or 0
         
         # Apply sorting
         if sort_by == "name":
@@ -73,12 +85,15 @@ async def get_medications(
         
         # Apply pagination
         offset = (page - 1) * limit
-        medication_list = query.offset(offset).limit(limit).all()
+        query = query.offset(offset).limit(limit)
+        
+        # Execute query
+        medication_list = await database.fetch_all(query)
         
         # Convert to response format
         response_medications = []
         for med in medication_list:
-            med_dict = dict(med._mapping)
+            med_dict = dict(med)
             # Calculate next reminder time if reminder is enabled
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 # This would be calculated based on the reminder system
@@ -102,7 +117,6 @@ async def get_medications(
 @router.post("/", response_model=MedicationResponse)
 async def create_medication(
     medication_data: MedicationCreate,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -128,16 +142,15 @@ async def create_medication(
         medication_dict["updated_at"] = datetime.now()
         
         # Insert into database
-        result = db.execute(medications.insert().values(**medication_dict))
-        db.commit()
+        query = medications.insert().values(**medication_dict)
+        medication_id = await database.execute(query)
         
         # Get the created medication
-        medication_id = result.inserted_primary_key[0]
-        created_medication = db.query(medications).filter(
-            medications.c.id == medication_id
-        ).first()
+        created_medication = await database.fetch_one(
+            medications.select().where(medications.c.id == medication_id)
+        )
         
-        med_dict = dict(created_medication._mapping)
+        med_dict = dict(created_medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
         
@@ -147,30 +160,30 @@ async def create_medication(
         raise
     except Exception as e:
         logger.error(f"Error creating medication: {e}")
-        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/{medication_id}", response_model=MedicationResponse)
 async def get_medication(
     medication_id: int,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
     Get a specific medication
     """
     try:
-        medication = db.query(medications).filter(
-            and_(
-                medications.c.id == medication_id,
-                medications.c.family_id == current_user["family_id"]
+        medication = await database.fetch_one(
+            medications.select().where(
+                and_(
+                    medications.c.id == medication_id,
+                    medications.c.family_id == current_user["family_id"]
+                )
             )
-        ).first()
+        )
         
         if not medication:
             raise HTTPException(status_code=404, detail="Medication not found")
         
-        med_dict = dict(medication._mapping)
+        med_dict = dict(medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
         
@@ -186,7 +199,6 @@ async def get_medication(
 async def update_medication(
     medication_id: int,
     medication_data: MedicationUpdate,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -194,12 +206,14 @@ async def update_medication(
     """
     try:
         # Check if medication exists and belongs to family
-        existing_medication = db.query(medications).filter(
-            and_(
-                medications.c.id == medication_id,
-                medications.c.family_id == current_user["family_id"]
+        existing_medication = await database.fetch_one(
+            medications.select().where(
+                and_(
+                    medications.c.id == medication_id,
+                    medications.c.family_id == current_user["family_id"]
+                )
             )
-        ).first()
+        )
         
         if not existing_medication:
             raise HTTPException(status_code=404, detail="Medication not found")
@@ -220,19 +234,18 @@ async def update_medication(
         update_data["updated_at"] = datetime.now()
         
         # Update database
-        db.execute(
+        await database.execute(
             medications.update().where(
                 medications.c.id == medication_id
             ).values(**update_data)
         )
-        db.commit()
         
         # Get updated medication
-        updated_medication = db.query(medications).filter(
-            medications.c.id == medication_id
-        ).first()
+        updated_medication = await database.fetch_one(
+            medications.select().where(medications.c.id == medication_id)
+        )
         
-        med_dict = dict(updated_medication._mapping)
+        med_dict = dict(updated_medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
         
@@ -242,13 +255,11 @@ async def update_medication(
         raise
     except Exception as e:
         logger.error(f"Error updating medication: {e}")
-        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.delete("/{medication_id}")
 async def delete_medication(
     medication_id: int,
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -256,12 +267,14 @@ async def delete_medication(
     """
     try:
         # Check if medication exists and belongs to family
-        existing_medication = db.query(medications).filter(
-            and_(
-                medications.c.id == medication_id,
-                medications.c.family_id == current_user["family_id"]
+        existing_medication = await database.fetch_one(
+            medications.select().where(
+                and_(
+                    medications.c.id == medication_id,
+                    medications.c.family_id == current_user["family_id"]
+                )
             )
-        ).first()
+        )
         
         if not existing_medication:
             raise HTTPException(status_code=404, detail="Medication not found")
@@ -269,12 +282,11 @@ async def delete_medication(
         # TODO: Cancel associated reminders
         
         # Delete from database
-        db.execute(
+        await database.execute(
             medications.delete().where(
                 medications.c.id == medication_id
             )
         )
-        db.commit()
         
         return {"success": True, "message": "Medication deleted successfully"}
         
@@ -282,14 +294,12 @@ async def delete_medication(
         raise
     except Exception as e:
         logger.error(f"Error deleting medication: {e}")
-        db.rollback()
         raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.get("/active", response_model=MedicationListResponse)
 async def get_active_medications(
     page: int = Query(1, ge=1, description="Page number"),
     limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -299,7 +309,7 @@ async def get_active_medications(
         today = date.today()
         
         # Build query for active medications
-        query = db.query(medications).filter(
+        query = medications.select().where(
             and_(
                 medications.c.family_id == current_user["family_id"],
                 medications.c.is_active == True,
@@ -315,16 +325,24 @@ async def get_active_medications(
         )
         
         # Get total count
-        total = query.count()
+        total = await database.fetch_val(
+            f"SELECT COUNT(*) FROM medications WHERE family_id = '{current_user['family_id']}' AND is_active = true" +
+            f" AND (start_date IS NULL OR start_date <= '{today}')" +
+            f" AND (end_date IS NULL OR end_date >= '{today}')"
+        )
+        total = total or 0
         
         # Apply pagination
         offset = (page - 1) * limit
-        medication_list = query.offset(offset).limit(limit).all()
+        query = query.offset(offset).limit(limit)
+        
+        # Execute query
+        medication_list = await database.fetch_all(query)
         
         # Convert to response format
         response_medications = []
         for med in medication_list:
-            med_dict = dict(med._mapping)
+            med_dict = dict(med)
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 med_dict["next_reminder"] = None  # TODO: Calculate next reminder
             response_medications.append(MedicationResponse(**med_dict))
@@ -345,7 +363,6 @@ async def get_active_medications(
 
 @router.get("/reminders", response_model=MedicationReminderListResponse)
 async def get_medication_reminders(
-    db: Session = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """
@@ -353,19 +370,21 @@ async def get_medication_reminders(
     """
     try:
         # Get medications with reminders enabled
-        medication_list = db.query(medications).filter(
-            and_(
-                medications.c.family_id == current_user["family_id"],
-                medications.c.reminder_enabled == True,
-                medications.c.is_active == True,
-                medications.c.reminder_time.isnot(None)
+        medication_list = await database.fetch_all(
+            medications.select().where(
+                and_(
+                    medications.c.family_id == current_user["family_id"],
+                    medications.c.reminder_enabled == True,
+                    medications.c.is_active == True,
+                    medications.c.reminder_time.isnot(None)
+                )
             )
-        ).all()
+        )
         
         # Convert to response format
         reminder_list = []
         for med in medication_list:
-            med_dict = dict(med._mapping)
+            med_dict = dict(med)
             reminder_data = {
                 "id": med_dict["id"],
                 "name": med_dict["name"],
