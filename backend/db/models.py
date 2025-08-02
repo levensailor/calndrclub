@@ -339,6 +339,9 @@ medical_providers = sqlalchemy.Table(
     sqlalchemy.Column("longitude", sqlalchemy.DECIMAL(11, 8), nullable=True),
     sqlalchemy.Column("zip_code", sqlalchemy.String(20), nullable=True),
     sqlalchemy.Column("notes", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("google_place_id", sqlalchemy.String(255), nullable=True),
+    sqlalchemy.Column("rating", sqlalchemy.Numeric(3, 2), nullable=True),
+    sqlalchemy.Column("created_by_user_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("users.id"), nullable=False),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
     sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
 )

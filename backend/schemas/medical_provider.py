@@ -15,6 +15,8 @@ class MedicalProviderBase(BaseModel):
     longitude: Optional[Decimal] = Field(None, ge=-180, le=180, description="Longitude coordinate")
     zip_code: Optional[str] = Field(None, max_length=20, description="ZIP code")
     notes: Optional[str] = Field(None, description="Additional notes")
+    google_place_id: Optional[str] = Field(None, max_length=255, description="Google Place ID")
+    rating: Optional[float] = Field(None, ge=0, le=5, description="Rating from 0 to 5")
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -48,7 +50,7 @@ class MedicalProviderBase(BaseModel):
         return v
 
 class MedicalProviderCreate(MedicalProviderBase):
-    family_id: str = Field(..., description="Family ID")
+    pass  # No need for explicit family_id as it's set from current_user
 
 class MedicalProviderUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -61,6 +63,8 @@ class MedicalProviderUpdate(BaseModel):
     longitude: Optional[Decimal] = Field(None, ge=-180, le=180)
     zip_code: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
+    google_place_id: Optional[str] = Field(None, max_length=255)
+    rating: Optional[float] = Field(None, ge=0, le=5)
 
     @validator('phone')
     def validate_phone(cls, v):
@@ -94,8 +98,9 @@ class MedicalProviderUpdate(BaseModel):
 class MedicalProviderResponse(MedicalProviderBase):
     id: int
     family_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_by_user_id: str
+    created_at: str
+    updated_at: str
     distance: Optional[float] = Field(None, description="Distance in miles from search location")
 
     class Config:

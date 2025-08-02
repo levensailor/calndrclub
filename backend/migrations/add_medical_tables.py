@@ -47,10 +47,31 @@ def create_medical_tables():
                     longitude DECIMAL(11, 8),
                     zip_code VARCHAR(20),
                     notes TEXT,
+                    google_place_id VARCHAR(255),
+                    rating DECIMAL(3, 2),
+                    created_by_user_id UUID NOT NULL REFERENCES users(id),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """))
+            
+            # Add missing columns if they don't exist (for existing tables)
+            logger.info("Adding missing columns to medical_providers table...")
+            try:
+                conn.execute(text("""
+                    ALTER TABLE medical_providers 
+                    ADD COLUMN IF NOT EXISTS google_place_id VARCHAR(255);
+                """))
+                conn.execute(text("""
+                    ALTER TABLE medical_providers 
+                    ADD COLUMN IF NOT EXISTS rating DECIMAL(3, 2);
+                """))
+                conn.execute(text("""
+                    ALTER TABLE medical_providers 
+                    ADD COLUMN IF NOT EXISTS created_by_user_id UUID REFERENCES users(id);
+                """))
+            except Exception as e:
+                logger.warning(f"Some columns may already exist: {e}")
             
             # Create medications table
             logger.info("Creating medications table...")

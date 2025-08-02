@@ -1,392 +1,257 @@
-"""
-Medical Providers API Endpoints
-Handles CRUD operations for medical providers
-"""
-
-import logging
+from fastapi import APIRouter, Depends, HTTPException
+from typing import List, Dict, Optional
+from datetime import datetime
 import os
 import httpx
 import math
-from typing import List, Optional
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func
-from datetime import datetime
 
 from core.database import database
 from core.security import get_current_user
+from core.logging import logger
 from db.models import medical_providers, users
 from schemas.medical_provider import (
     MedicalProviderCreate,
     MedicalProviderUpdate,
     MedicalProviderResponse,
-    MedicalProviderSearchParams,
-    MedicalProviderListResponse,
     MedicalSearchRequest,
     MedicalSearchResult,
     MedicalSearchResponse
 )
-from utils.location_service import location_service
 
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=MedicalProviderListResponse)
-async def get_medical_providers(
-    specialty: Optional[str] = Query(None, description="Filter by specialty"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    sort_by: str = Query("name", description="Sort by: name, created_at"),
-    sort_order: str = Query("asc", description="Sort order: asc, desc"),
-    current_user: dict = Depends(get_current_user)
-):
+@router.get("/", response_model=List[MedicalProviderResponse])
+async def get_medical_providers(current_user = Depends(get_current_user)):
     """
-    Get all medical providers for the authenticated family
+    Get all medical providers for the current user's family.
     """
     try:
-        # Build base query
-        query = medical_providers.select().where(
-            medical_providers.c.family_id == current_user["family_id"]
-        )
-        
-        # Apply specialty filter
-        if specialty:
-            query = query.where(
-                medical_providers.c.specialty.ilike(f"%{specialty}%")
-            )
-        
-        # Get total count
-        count_query = medical_providers.select().where(
-            medical_providers.c.family_id == current_user["family_id"]
-        )
-        if specialty:
-            count_query = count_query.where(
-                medical_providers.c.specialty.ilike(f"%{specialty}%")
-            )
-        total = await database.fetch_val(
-            f"SELECT COUNT(*) FROM medical_providers WHERE family_id = '{current_user['family_id']}'" + 
-            (f" AND specialty ILIKE '%{specialty}%'" if specialty else "")
-        )
-        total = total or 0
-        
-        # Apply sorting
-        if sort_by == "name":
-            order_column = medical_providers.c.name
-        elif sort_by == "created_at":
-            order_column = medical_providers.c.created_at
-        else:
-            order_column = medical_providers.c.name
-        
-        if sort_order.lower() == "desc":
-            query = query.order_by(order_column.desc())
-        else:
-            query = query.order_by(order_column.asc())
-        
-        # Apply pagination
-        offset = (page - 1) * limit
-        query = query.offset(offset).limit(limit)
-        
-        # Execute query
+        query = medical_providers.select().where(medical_providers.c.family_id == current_user['family_id'])
         providers = await database.fetch_all(query)
         
-        # Convert to response format
-        provider_list = []
-        for provider in providers:
-            provider_dict = dict(provider)
-            provider_list.append(MedicalProviderResponse(**provider_dict))
-        
-        total_pages = (total + limit - 1) // limit
-        
-        return MedicalProviderListResponse(
-            providers=provider_list,
-            total=total,
-            page=page,
-            limit=limit,
-            total_pages=total_pages
-        )
-        
+        return [
+            MedicalProviderResponse(
+                id=provider['id'],
+                name=provider['name'],
+                specialty=provider['specialty'],
+                address=provider['address'],
+                phone=provider['phone'],
+                email=provider['email'],
+                website=provider['website'],
+                latitude=float(provider['latitude']) if provider['latitude'] else None,
+                longitude=float(provider['longitude']) if provider['longitude'] else None,
+                zip_code=provider['zip_code'],
+                notes=provider['notes'],
+                google_place_id=provider['google_place_id'],
+                rating=float(provider['rating']) if provider['rating'] else None,
+                family_id=str(provider['family_id']),
+                created_by_user_id=str(provider['created_by_user_id']),
+                created_at=str(provider['created_at']),
+                updated_at=str(provider['updated_at'])
+            )
+            for provider in providers
+        ]
     except Exception as e:
         logger.error(f"Error fetching medical providers: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Failed to fetch medical providers")
 
 @router.post("/", response_model=MedicalProviderResponse)
-async def create_medical_provider(
-    provider_data: MedicalProviderCreate,
-    current_user: dict = Depends(get_current_user)
-):
+async def create_medical_provider(provider_data: MedicalProviderCreate, current_user = Depends(get_current_user)):
     """
-    Create a new medical provider
+    Create a new medical provider for the current user's family.
     """
     try:
-        # Validate family ownership
-        if provider_data.family_id != current_user["family_id"]:
-            raise HTTPException(status_code=403, detail="Access denied")
+        # Prepare the insert data
+        insert_data = {
+            "family_id": current_user['family_id'],
+            "created_by_user_id": current_user['id'],
+            "name": provider_data.name,
+            "specialty": provider_data.specialty,
+            "address": provider_data.address,
+            "phone": provider_data.phone,
+            "email": provider_data.email,
+            "website": provider_data.website,
+            "latitude": provider_data.latitude,
+            "longitude": provider_data.longitude,
+            "zip_code": provider_data.zip_code,
+            "notes": provider_data.notes,
+            "google_place_id": provider_data.google_place_id,
+            "rating": provider_data.rating,
+            "created_at": datetime.now(),
+            "updated_at": datetime.now()
+        }
         
-        # Prepare data
-        provider_dict = provider_data.dict()
-        
-        # Geocode address if coordinates not provided
-        if provider_dict.get("address") and not (provider_dict.get("latitude") and provider_dict.get("longitude")):
-            coords = location_service.geocode_address(provider_dict["address"])
-            if coords:
-                provider_dict["latitude"], provider_dict["longitude"] = coords
-        
-        # Extract ZIP code if not provided
-        if provider_dict.get("address") and not provider_dict.get("zip_code"):
-            zip_code = location_service.extract_zip_code(provider_dict["address"])
-            if zip_code:
-                provider_dict["zip_code"] = zip_code
-        
-        # Format phone number
-        if provider_dict.get("phone"):
-            provider_dict["phone"] = location_service.format_phone_number(provider_dict["phone"])
-        
-        # Set timestamps
-        provider_dict["created_at"] = datetime.now()
-        provider_dict["updated_at"] = datetime.now()
-        
-        # Insert into database
-        query = medical_providers.insert().values(**provider_dict)
+        # Insert the provider
+        query = medical_providers.insert().values(**insert_data)
         provider_id = await database.execute(query)
         
-        # Get the created provider
+        # Fetch the created provider
         created_provider = await database.fetch_one(
             medical_providers.select().where(medical_providers.c.id == provider_id)
         )
         
-        return MedicalProviderResponse(**dict(created_provider))
-        
-    except HTTPException:
-        raise
+        return MedicalProviderResponse(
+            id=created_provider['id'],
+            name=created_provider['name'],
+            specialty=created_provider['specialty'],
+            address=created_provider['address'],
+            phone=created_provider['phone'],
+            email=created_provider['email'],
+            website=created_provider['website'],
+            latitude=float(created_provider['latitude']) if created_provider['latitude'] else None,
+            longitude=float(created_provider['longitude']) if created_provider['longitude'] else None,
+            zip_code=created_provider['zip_code'],
+            notes=created_provider['notes'],
+            google_place_id=created_provider['google_place_id'],
+            rating=float(created_provider['rating']) if created_provider['rating'] else None,
+            family_id=str(created_provider['family_id']),
+            created_by_user_id=str(created_provider['created_by_user_id']),
+            created_at=str(created_provider['created_at']),
+            updated_at=str(created_provider['updated_at'])
+        )
+    
     except Exception as e:
         logger.error(f"Error creating medical provider: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        raise HTTPException(status_code=500, detail="Failed to create medical provider")
 
 @router.get("/{provider_id}", response_model=MedicalProviderResponse)
-async def get_medical_provider(
-    provider_id: int,
-    current_user: dict = Depends(get_current_user)
-):
+async def get_medical_provider(provider_id: int, current_user = Depends(get_current_user)):
     """
-    Get a specific medical provider
+    Get a specific medical provider by ID (must belong to user's family).
     """
     try:
-        provider = await database.fetch_one(
-            medical_providers.select().where(
-                and_(
-                    medical_providers.c.id == provider_id,
-                    medical_providers.c.family_id == current_user["family_id"]
-                )
-            )
+        query = medical_providers.select().where(
+            (medical_providers.c.id == provider_id) &
+            (medical_providers.c.family_id == current_user['family_id'])
         )
+        provider = await database.fetch_one(query)
         
         if not provider:
             raise HTTPException(status_code=404, detail="Medical provider not found")
         
-        return MedicalProviderResponse(**dict(provider))
-        
+        return MedicalProviderResponse(
+            id=provider['id'],
+            name=provider['name'],
+            specialty=provider['specialty'],
+            address=provider['address'],
+            phone=provider['phone'],
+            email=provider['email'],
+            website=provider['website'],
+            latitude=float(provider['latitude']) if provider['latitude'] else None,
+            longitude=float(provider['longitude']) if provider['longitude'] else None,
+            zip_code=provider['zip_code'],
+            notes=provider['notes'],
+            google_place_id=provider['google_place_id'],
+            rating=float(provider['rating']) if provider['rating'] else None,
+            family_id=str(provider['family_id']),
+            created_by_user_id=str(provider['created_by_user_id']),
+            created_at=str(provider['created_at']),
+            updated_at=str(provider['updated_at'])
+        )
+    
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error fetching medical provider: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error fetching medical provider {provider_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to fetch medical provider")
 
 @router.put("/{provider_id}", response_model=MedicalProviderResponse)
 async def update_medical_provider(
-    provider_id: int,
-    provider_data: MedicalProviderUpdate,
-    current_user: dict = Depends(get_current_user)
+    provider_id: int, 
+    provider_data: MedicalProviderUpdate, 
+    current_user = Depends(get_current_user)
 ):
     """
-    Update a medical provider
+    Update an existing medical provider (must belong to user's family).
     """
     try:
-        # Check if provider exists and belongs to family
+        # Check if the provider exists and belongs to the user's family
         existing_provider = await database.fetch_one(
             medical_providers.select().where(
-                and_(
-                    medical_providers.c.id == provider_id,
-                    medical_providers.c.family_id == current_user["family_id"]
-                )
+                (medical_providers.c.id == provider_id) &
+                (medical_providers.c.family_id == current_user['family_id'])
             )
         )
         
         if not existing_provider:
             raise HTTPException(status_code=404, detail="Medical provider not found")
         
-        # Prepare update data
-        update_data = provider_data.dict(exclude_unset=True)
+        # Prepare update data (only include non-None values)
+        update_data = {"updated_at": datetime.now()}
         
-        # Geocode address if provided and coordinates not provided
-        if update_data.get("address") and not (update_data.get("latitude") and update_data.get("longitude")):
-            coords = location_service.geocode_address(update_data["address"])
-            if coords:
-                update_data["latitude"], update_data["longitude"] = coords
+        for field, value in provider_data.dict(exclude_unset=True).items():
+            if value is not None:
+                update_data[field] = value
         
-        # Extract ZIP code if address provided and ZIP not provided
-        if update_data.get("address") and not update_data.get("zip_code"):
-            zip_code = location_service.extract_zip_code(update_data["address"])
-            if zip_code:
-                update_data["zip_code"] = zip_code
+        # Update the provider
+        query = medical_providers.update().where(
+            medical_providers.c.id == provider_id
+        ).values(**update_data)
         
-        # Format phone number if provided
-        if update_data.get("phone"):
-            update_data["phone"] = location_service.format_phone_number(update_data["phone"])
+        await database.execute(query)
         
-        # Set updated timestamp
-        update_data["updated_at"] = datetime.now()
-        
-        # Update database
-        await database.execute(
-            medical_providers.update().where(
-                medical_providers.c.id == provider_id
-            ).values(**update_data)
-        )
-        
-        # Get updated provider
+        # Fetch the updated provider
         updated_provider = await database.fetch_one(
             medical_providers.select().where(medical_providers.c.id == provider_id)
         )
         
-        return MedicalProviderResponse(**dict(updated_provider))
-        
+        return MedicalProviderResponse(
+            id=updated_provider['id'],
+            name=updated_provider['name'],
+            specialty=updated_provider['specialty'],
+            address=updated_provider['address'],
+            phone=updated_provider['phone'],
+            email=updated_provider['email'],
+            website=updated_provider['website'],
+            latitude=float(updated_provider['latitude']) if updated_provider['latitude'] else None,
+            longitude=float(updated_provider['longitude']) if updated_provider['longitude'] else None,
+            zip_code=updated_provider['zip_code'],
+            notes=updated_provider['notes'],
+            google_place_id=updated_provider['google_place_id'],
+            rating=float(updated_provider['rating']) if updated_provider['rating'] else None,
+            family_id=str(updated_provider['family_id']),
+            created_by_user_id=str(updated_provider['created_by_user_id']),
+            created_at=str(updated_provider['created_at']),
+            updated_at=str(updated_provider['updated_at'])
+        )
+    
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error updating medical provider: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error updating medical provider {provider_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to update medical provider")
 
 @router.delete("/{provider_id}")
-async def delete_medical_provider(
-    provider_id: int,
-    current_user: dict = Depends(get_current_user)
-):
+async def delete_medical_provider(provider_id: int, current_user = Depends(get_current_user)):
     """
-    Delete a medical provider
+    Delete a medical provider (must belong to user's family).
     """
     try:
-        # Check if provider exists and belongs to family
+        # Check if the provider exists and belongs to the user's family
         existing_provider = await database.fetch_one(
             medical_providers.select().where(
-                and_(
-                    medical_providers.c.id == provider_id,
-                    medical_providers.c.family_id == current_user["family_id"]
-                )
+                (medical_providers.c.id == provider_id) &
+                (medical_providers.c.family_id == current_user['family_id'])
             )
         )
         
         if not existing_provider:
             raise HTTPException(status_code=404, detail="Medical provider not found")
         
-        # Delete from database
-        await database.execute(
-            medical_providers.delete().where(
-                medical_providers.c.id == provider_id
-            )
-        )
+        # Delete the provider
+        query = medical_providers.delete().where(medical_providers.c.id == provider_id)
+        await database.execute(query)
         
-        return {"success": True, "message": "Medical provider deleted successfully"}
-        
+        return {"message": "Medical provider deleted successfully"}
+    
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error deleting medical provider: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
-
-@router.get("/search", response_model=MedicalProviderListResponse)
-async def search_medical_providers(
-    q: Optional[str] = Query(None, description="Search query"),
-    lat: Optional[float] = Query(None, ge=-90, le=90, description="Latitude"),
-    lng: Optional[float] = Query(None, ge=-180, le=180, description="Longitude"),
-    radius: float = Query(25.0, gt=0, le=100, description="Search radius in miles"),
-    specialty: Optional[str] = Query(None, description="Filter by specialty"),
-    page: int = Query(1, ge=1, description="Page number"),
-    limit: int = Query(20, ge=1, le=100, description="Items per page"),
-    sort_by: str = Query("name", description="Sort by: name, distance, created_at"),
-    sort_order: str = Query("asc", description="Sort order: asc, desc"),
-    current_user: dict = Depends(get_current_user)
-):
-    """
-    Search medical providers by location or name
-    """
-    try:
-        # Build base query
-        query = medical_providers.select().where(
-            medical_providers.c.family_id == current_user["family_id"]
-        )
-        
-        # Apply text search
-        if q:
-            search_filter = or_(
-                medical_providers.c.name.ilike(f"%{q}%"),
-                medical_providers.c.specialty.ilike(f"%{q}%"),
-                medical_providers.c.address.ilike(f"%{q}%")
-            )
-            query = query.where(search_filter)
-        
-        # Apply specialty filter
-        if specialty:
-            query = query.where(
-                medical_providers.c.specialty.ilike(f"%{specialty}%")
-            )
-        
-        # Get all matching providers
-        providers = await database.fetch_all(query)
-        
-        # Convert to list of dictionaries
-        provider_list = []
-        for provider in providers:
-            provider_dict = dict(provider)
-            provider_list.append(provider_dict)
-        
-        # Apply location-based filtering and distance calculation
-        if lat is not None and lng is not None:
-            provider_list = location_service.search_providers_by_location(
-                provider_list, lat, lng, radius
-            )
-        
-        # Apply sorting
-        if sort_by == "distance" and lat is not None and lng is not None:
-            provider_list.sort(key=lambda x: x.get('distance', float('inf')))
-            if sort_order.lower() == "desc":
-                provider_list.reverse()
-        elif sort_by == "name":
-            provider_list.sort(key=lambda x: x.get('name', ''))
-            if sort_order.lower() == "desc":
-                provider_list.reverse()
-        elif sort_by == "created_at":
-            provider_list.sort(key=lambda x: x.get('created_at', datetime.min))
-            if sort_order.lower() == "desc":
-                provider_list.reverse()
-        
-        # Apply pagination
-        total = len(provider_list)
-        offset = (page - 1) * limit
-        paginated_providers = provider_list[offset:offset + limit]
-        
-        # Convert to response format
-        response_providers = []
-        for provider in paginated_providers:
-            response_providers.append(MedicalProviderResponse(**provider))
-        
-        total_pages = (total + limit - 1) // limit
-        
-        return MedicalProviderListResponse(
-            providers=response_providers,
-            total=total,
-            page=page,
-            limit=limit,
-            total_pages=total_pages
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error searching medical providers: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"Error deleting medical provider {provider_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to delete medical provider")
 
 @router.post("/search", response_model=MedicalSearchResponse)
-async def search_medical_providers_post(
+async def search_medical_providers(
     search_data: MedicalSearchRequest,
     current_user: dict = Depends(get_current_user)
 ):
@@ -553,4 +418,4 @@ def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> fl
          math.sin(delta_lng / 2) ** 2)
     c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
     
-    return R * c 
+    return R * c
