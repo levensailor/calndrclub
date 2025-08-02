@@ -87,16 +87,13 @@ validate_database_config()
 # Database setup with connection pooling
 logger.info("Initializing database connection...")
 try:
-    # Configure the database with optimized connection limits for high concurrency
+    # Configure the database with supported parameters only
     database = databases.Database(
         settings.DATABASE_URL,
-        min_size=5,      # Increased minimum connections
-        max_size=30,     # Increased maximum connections for high concurrency
-        force_rollback=True,  # Force rollback on connection close
-        ssl="prefer",    # Use SSL if available
-        command_timeout=60,  # 60 second command timeout
-        pool_timeout=30,     # 30 second pool timeout
-        pool_recycle=1800    # Recycle connections after 30 minutes
+        min_size=5,      # Minimum connections in pool
+        max_size=30,     # Maximum connections in pool
+        # Note: other connection parameters like SSL, timeout, etc. are handled 
+        # at the asyncpg level through the DATABASE_URL connection string
     )
     logger.info("Database object created successfully")
 except Exception as e:

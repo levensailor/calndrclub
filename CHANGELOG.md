@@ -2,6 +2,17 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-08-02 11:56 EST] - Fixed Database Connection Parameter Error
+- **User Prompt**: "Database connection failed: connect() got an unexpected keyword argument 'pool_timeout'"
+- **Changes Made**:
+  - Fixed database configuration in `backend/core/database.py` by removing unsupported parameters
+  - Removed `pool_timeout` and `pool_recycle` parameters that are not supported by the `databases` library
+  - Kept only supported parameters: `min_size`, `max_size`, `force_rollback`, `ssl`, and `command_timeout`
+  - Added explanatory comments about parameter limitations in the `databases` library
+- **Root Cause**: The `databases` library doesn't support the same connection parameters as raw `asyncpg`
+- **Impact**: Database connection now initializes properly without TypeError exceptions
+- **Status**: ✅ Database connection error resolved
+
 ## [2025-01-27 16:45 EST] - Implemented Comprehensive Medical Management System
 - **User Prompt**: "Backend Medical API Implementation Prompt - Medical Providers and Medications"
 - **Changes Made**:
