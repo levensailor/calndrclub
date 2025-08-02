@@ -121,6 +121,24 @@ class MedicalSearchRequest(BaseModel):
     specialty: Optional[str] = None
     query: Optional[str] = None  # search term for name/specialty
 
+class MedicalSearchResult(BaseModel):
+    id: str
+    name: str
+    specialty: Optional[str] = None
+    address: str
+    phone_number: Optional[str] = Field(None, alias="phoneNumber")
+    website: Optional[str] = None
+    rating: Optional[float] = None
+    place_id: Optional[str] = Field(None, alias="placeId")
+    distance: Optional[float] = None  # distance in miles
+    
+    class Config:
+        populate_by_name = True  # Allow both original field names and aliases
+
+class MedicalSearchResponse(BaseModel):
+    results: List[MedicalSearchResult]
+    total: int
+
 class MedicalProviderListResponse(BaseModel):
     providers: List[MedicalProviderResponse]
     total: int

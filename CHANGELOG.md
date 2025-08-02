@@ -2,6 +2,19 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-08-02 12:25 EST] - Fixed Medical Providers Search Response Format
+- **User Prompt**: "frontend has - ❌ Error searching medical providers: The data couldn't be read because it isn't in the correct format. - the backend is sending the lines attached, but the frontend is expecting: struct MedicalSearchResult: Codable, Identifiable { let id: String, let name: String, let specialty: String?, let address: String, let phoneNumber: String?, let website: String?, let rating: Double?, let placeId: String? }"
+- **Changes Made**:
+  - Added `MedicalSearchResult` schema to `backend/schemas/medical_provider.py` matching exact frontend expectations
+  - Added `MedicalSearchResponse` schema with `results` array and `total` count
+  - Updated POST `/search` endpoint to return `MedicalSearchResponse` instead of `MedicalProviderListResponse`
+  - Added field mapping: backend `phone` → frontend `phone_number`
+  - Added support for future fields: `rating` and `place_id` (currently null)
+  - Added proper field aliases and configuration for iOS compatibility
+- **Root Cause**: Backend was returning `MedicalProviderResponse` format, but frontend expected `MedicalSearchResult` format with different field names
+- **Impact**: Medical providers search now returns data in exact format expected by iOS frontend
+- **Status**: ✅ Medical providers search response format fixed
+
 ## [2025-08-02 12:15 EST] - Fixed Medical Providers Search 405 Error
 - **User Prompt**: "search_medical_providers is sending a 405 error back. the frontend is sending this - let searchRequest = MedicalSearchRequest(locationType: "current", zipcode: nil, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude, radius: 5000)"
 - **Changes Made**:

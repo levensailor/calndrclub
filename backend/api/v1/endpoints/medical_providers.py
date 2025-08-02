@@ -19,7 +19,9 @@ from schemas.medical_provider import (
     MedicalProviderResponse,
     MedicalProviderSearchParams,
     MedicalProviderListResponse,
-    MedicalSearchRequest
+    MedicalSearchRequest,
+    MedicalSearchResult,
+    MedicalSearchResponse
 )
 from utils.location_service import location_service
 
@@ -380,13 +382,14 @@ async def search_medical_providers(
         logger.error(f"Error searching medical providers: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post("/search", response_model=MedicalProviderListResponse)
+@router.post("/search", response_model=MedicalSearchResponse)
 async def search_medical_providers_post(
     search_data: MedicalSearchRequest,
     current_user: dict = Depends(get_current_user)
 ):
     """
     Search medical providers by location with POST request
+    Returns results in format expected by frontend
     """
     try:
         # Convert radius from meters to miles for consistency with GET endpoint
@@ -429,20 +432,30 @@ async def search_medical_providers_post(
             # Sort by distance by default when location is provided
             provider_list.sort(key=lambda x: x.get('distance', float('inf')))
         
-        # For now, return all results without pagination (can be enhanced later)
-        # Convert to response format
-        response_providers = []
+        # Convert to frontend-expected format (MedicalSearchResult)
+        search_results = []
         for provider in provider_list:
-            response_providers.append(MedicalProviderResponse(**provider))
+            # Transform backend fields to frontend expected fields
+            search_result = MedicalSearchResult(
+                id=str(provider.get('id', '')),
+                name=provider.get('name', ''),
+                specialty=provider.get('specialty'),
+                address=provider.get('address', ''),
+                phone_number=provider.get('phone'),  # backend uses 'phone', frontend expects 'phone_number'
+                website=provider.get('website'),
+                rating=None,  # Backend doesn't have rating, could be added later
+                place_id=None,  # Backend doesn't have place_id, could be added later
+                distance=provider.get('distance')
+            )
+            search_results.append(search_result)
         
-        total = len(response_providers)
+        total = len(search_results)
         
-        return MedicalProviderListResponse(
-            providers=response_providers,
-            total=total,
-            page=1,
-            limit=total,
-            total_pages=1
+        logger.info(f"Medical provider search returned {total} results for family {current_user['family_id']}")
+        
+        return MedicalSearchResponse(
+            results=search_results,
+            total=total
         )
         
     except HTTPException:
