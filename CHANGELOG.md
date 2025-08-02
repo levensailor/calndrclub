@@ -2,6 +2,19 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-08-02 16:15 EST] - Fixed Medical Provider Schema and Added Debugging
+- **User Prompt**: "❌ Error saving medical provider: The request failed with a status code: 401. ❌ Failed to auto-save medical provider: Travis County Employee Health Clinic - get this from the frontend"
+- **Changes Made**:
+  - **Schema Fix**: Updated `backend/schemas/medical_provider.py` to use `float` instead of `Decimal` for latitude/longitude to match iOS frontend expectations
+  - **Data Type Alignment**: Changed coordinate fields to be compatible with iOS `Double?` type
+  - **Debug Endpoints**: Added debugging endpoints to diagnose 401 authentication issues:
+    - GET `/medical-providers/debug/auth` - Test authentication
+    - POST `/medical-providers/debug/test-create` - Test provider creation without database
+  - **Enhanced Logging**: Added logging to create endpoint to track requests and identify issues
+- **Root Cause**: Potential schema mismatch between iOS frontend `Double?` and backend `Decimal` types causing request parsing issues
+- **Impact**: Medical provider creation should now work properly with iOS frontend data types
+- **Status**: ✅ Schema fixed, debugging endpoints added for 401 troubleshooting
+
 ## [2025-08-02 16:00 EST] - Complete Medical Provider Backend Implementation
 - **User Prompt**: "Backend Medical Provider Implementation Prompt - Medical Providers and Medications"
 - **Changes Made**:

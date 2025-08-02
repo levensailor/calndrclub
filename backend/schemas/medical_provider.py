@@ -1,7 +1,6 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime, date
-from decimal import Decimal
 import re
 
 class MedicalProviderBase(BaseModel):
@@ -11,8 +10,8 @@ class MedicalProviderBase(BaseModel):
     phone: Optional[str] = Field(None, max_length=50, description="Phone number")
     email: Optional[str] = Field(None, max_length=255, description="Email address")
     website: Optional[str] = Field(None, max_length=500, description="Website URL")
-    latitude: Optional[Decimal] = Field(None, ge=-90, le=90, description="Latitude coordinate")
-    longitude: Optional[Decimal] = Field(None, ge=-180, le=180, description="Longitude coordinate")
+    latitude: Optional[float] = Field(None, ge=-90, le=90, description="Latitude coordinate")
+    longitude: Optional[float] = Field(None, ge=-180, le=180, description="Longitude coordinate")
     zip_code: Optional[str] = Field(None, max_length=20, description="ZIP code")
     notes: Optional[str] = Field(None, description="Additional notes")
     google_place_id: Optional[str] = Field(None, max_length=255, description="Google Place ID")
@@ -59,8 +58,8 @@ class MedicalProviderUpdate(BaseModel):
     phone: Optional[str] = Field(None, max_length=50)
     email: Optional[str] = Field(None, max_length=255)
     website: Optional[str] = Field(None, max_length=500)
-    latitude: Optional[Decimal] = Field(None, ge=-90, le=90)
-    longitude: Optional[Decimal] = Field(None, ge=-180, le=180)
+    latitude: Optional[float] = Field(None, ge=-90, le=90)
+    longitude: Optional[float] = Field(None, ge=-180, le=180)
     zip_code: Optional[str] = Field(None, max_length=20)
     notes: Optional[str] = None
     google_place_id: Optional[str] = Field(None, max_length=255)
