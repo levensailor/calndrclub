@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-08-02 12:05 EST] - Fixed Custody Cache Invalidation Issue
+- **User Prompt**: "when i update a custody day, it takes effect in the UI and i see it on the backend as updated, but when i refresh the page, it grabs a cached copy instead and shows the custody how it was previously set"
+- **Changes Made**:
+  - Enhanced cache invalidation in `backend/api/v1/endpoints/custody.py` with verification and error handling
+  - Added cache existence checking before deletion to verify invalidation success
+  - Implemented pattern-based cache invalidation as fallback for extra safety
+  - Added detailed logging to catch silent Redis timeout failures
+  - Improved error visibility for failed cache invalidation operations
+- **Root Cause**: Redis cache invalidation was failing silently due to timeouts, leaving stale cached data
+- **Impact**: Custody updates now properly invalidate cache with verification and comprehensive logging
+- **Status**: ✅ Cache invalidation enhanced with robust error handling and verification
+
 ## [2025-08-02 11:56 EST] - Fixed Database Connection Parameter Error
 - **User Prompt**: "Database connection failed: connect() got an unexpected keyword argument 'pool_timeout'"
 - **Changes Made**:

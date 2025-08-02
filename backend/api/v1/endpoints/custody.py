@@ -75,15 +75,30 @@ async def create_custody(custody_data: CustodyRecord, current_user = Depends(get
         )
         record_id = await database.execute(insert_query)
             
-        # Invalidate cache for this month
+        # Invalidate cache for this month with verification
         cache_key = f"custody_opt:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
-        await redis_service.delete(cache_key)
+        cache_existed = await redis_service.exists(cache_key)
+        cache_deleted = await redis_service.delete(cache_key)
         
         # Also invalidate handoff-only cache
         handoff_cache_key = f"handoff_only:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
-        await redis_service.delete(handoff_cache_key)
+        handoff_cache_existed = await redis_service.exists(handoff_cache_key)
+        handoff_cache_deleted = await redis_service.delete(handoff_cache_key)
         
-        logger.info(f"🗑️ Invalidated caches for family {family_id} month {custody_data.date.year}/{custody_data.date.month}")
+        # Verify cache invalidation
+        if cache_existed and not cache_deleted:
+            logger.warning(f"⚠️ Failed to invalidate main custody cache: {cache_key}")
+        if handoff_cache_existed and not handoff_cache_deleted:
+            logger.warning(f"⚠️ Failed to invalidate handoff cache: {handoff_cache_key}")
+        
+        # Additional pattern-based cache invalidation for extra safety
+        pattern = f"custody*:family:{family_id}:*"
+        pattern_deleted = await redis_service.delete_pattern(pattern)
+        
+        logger.info(f"🗑️ Cache invalidation for family {family_id} month {custody_data.date.year}/{custody_data.date.month}: "
+                   f"main_cache={'deleted' if cache_deleted else 'failed'} "
+                   f"handoff_cache={'deleted' if handoff_cache_deleted else 'failed'} "
+                   f"pattern_deleted={pattern_deleted}")
             
         # Get custodian name for response
         custodian_user = await database.fetch_one(users.select().where(users.c.id == custody_data.custodian_id))
@@ -150,15 +165,30 @@ async def update_custody_by_date(custody_date: date, custody_data: CustodyRecord
         )
         await database.execute(update_query)
         
-        # Invalidate cache for this month
+        # Invalidate cache for this month with verification
         cache_key = f"custody_opt:family:{family_id}:{custody_date.year}:{custody_date.month:02d}"
-        await redis_service.delete(cache_key)
+        cache_existed = await redis_service.exists(cache_key)
+        cache_deleted = await redis_service.delete(cache_key)
         
         # Also invalidate handoff-only cache
         handoff_cache_key = f"handoff_only:family:{family_id}:{custody_date.year}:{custody_date.month:02d}"
-        await redis_service.delete(handoff_cache_key)
+        handoff_cache_existed = await redis_service.exists(handoff_cache_key)
+        handoff_cache_deleted = await redis_service.delete(handoff_cache_key)
         
-        logger.info(f"🗑️ Invalidated caches for family {family_id} month {custody_date.year}/{custody_date.month}")
+        # Verify cache invalidation
+        if cache_existed and not cache_deleted:
+            logger.warning(f"⚠️ Failed to invalidate main custody cache: {cache_key}")
+        if handoff_cache_existed and not handoff_cache_deleted:
+            logger.warning(f"⚠️ Failed to invalidate handoff cache: {handoff_cache_key}")
+        
+        # Additional pattern-based cache invalidation for extra safety
+        pattern = f"custody*:family:{family_id}:*"
+        pattern_deleted = await redis_service.delete_pattern(pattern)
+        
+        logger.info(f"🗑️ Cache invalidation for family {family_id} month {custody_date.year}/{custody_date.month}: "
+                   f"main_cache={'deleted' if cache_deleted else 'failed'} "
+                   f"handoff_cache={'deleted' if handoff_cache_deleted else 'failed'} "
+                   f"pattern_deleted={pattern_deleted}")
         
         # Get updated record to return
         updated_record_query = custody.select().where(custody.c.id == existing_record['id'])
