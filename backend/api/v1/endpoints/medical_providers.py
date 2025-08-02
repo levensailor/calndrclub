@@ -18,7 +18,8 @@ from schemas.medical_provider import (
     MedicalProviderUpdate,
     MedicalProviderResponse,
     MedicalProviderSearchParams,
-    MedicalProviderListResponse
+    MedicalProviderListResponse,
+    MedicalSearchRequest
 )
 from utils.location_service import location_service
 
@@ -377,4 +378,75 @@ async def search_medical_providers(
         raise
     except Exception as e:
         logger.error(f"Error searching medical providers: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+@router.post("/search", response_model=MedicalProviderListResponse)
+async def search_medical_providers_post(
+    search_data: MedicalSearchRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """
+    Search medical providers by location with POST request
+    """
+    try:
+        # Convert radius from meters to miles for consistency with GET endpoint
+        radius_miles = search_data.radius / 1609.34 if search_data.radius else 25.0
+        
+        # Build base query
+        query = medical_providers.select().where(
+            medical_providers.c.family_id == current_user["family_id"]
+        )
+        
+        # Apply text search if provided
+        if search_data.query:
+            search_filter = or_(
+                medical_providers.c.name.ilike(f"%{search_data.query}%"),
+                medical_providers.c.specialty.ilike(f"%{search_data.query}%"),
+                medical_providers.c.address.ilike(f"%{search_data.query}%")
+            )
+            query = query.where(search_filter)
+        
+        # Apply specialty filter if provided
+        if search_data.specialty:
+            query = query.where(
+                medical_providers.c.specialty.ilike(f"%{search_data.specialty}%")
+            )
+        
+        # Get all matching providers
+        providers = await database.fetch_all(query)
+        
+        # Convert to list of dictionaries
+        provider_list = []
+        for provider in providers:
+            provider_dict = dict(provider)
+            provider_list.append(provider_dict)
+        
+        # Apply location-based filtering and distance calculation
+        if search_data.latitude is not None and search_data.longitude is not None:
+            provider_list = location_service.search_providers_by_location(
+                provider_list, search_data.latitude, search_data.longitude, radius_miles
+            )
+            # Sort by distance by default when location is provided
+            provider_list.sort(key=lambda x: x.get('distance', float('inf')))
+        
+        # For now, return all results without pagination (can be enhanced later)
+        # Convert to response format
+        response_providers = []
+        for provider in provider_list:
+            response_providers.append(MedicalProviderResponse(**provider))
+        
+        total = len(response_providers)
+        
+        return MedicalProviderListResponse(
+            providers=response_providers,
+            total=total,
+            page=1,
+            limit=total,
+            total_pages=1
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error searching medical providers (POST): {e}")
         raise HTTPException(status_code=500, detail="Internal server error") 

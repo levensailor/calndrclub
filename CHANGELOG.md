@@ -2,6 +2,18 @@
 
 All notable changes to the Calndr Backend project will be documented in this file.
 
+## [2025-08-02 12:15 EST] - Fixed Medical Providers Search 405 Error
+- **User Prompt**: "search_medical_providers is sending a 405 error back. the frontend is sending this - let searchRequest = MedicalSearchRequest(locationType: "current", zipcode: nil, latitude: location.coordinate.latitude, longitude: location.coordinate.longitude, radius: 5000)"
+- **Changes Made**:
+  - Added `MedicalSearchRequest` schema to `backend/schemas/medical_provider.py` matching frontend expectations
+  - Created new POST `/search` endpoint in `backend/api/v1/endpoints/medical_providers.py` to handle JSON requests
+  - Added location-based search with radius conversion from meters to miles
+  - Maintained consistency with existing GET search endpoint functionality
+  - Added automatic distance-based sorting when location coordinates are provided
+- **Root Cause**: Frontend was sending POST request with JSON payload, but only GET endpoint with query parameters existed
+- **Impact**: Medical providers search now accepts both GET (query params) and POST (JSON payload) request formats
+- **Status**: ✅ Medical providers search 405 error resolved
+
 ## [2025-08-02 12:05 EST] - Fixed Custody Cache Invalidation Issue
 - **User Prompt**: "when i update a custody day, it takes effect in the UI and i see it on the backend as updated, but when i refresh the page, it grabs a cached copy instead and shows the custody how it was previously set"
 - **Changes Made**:

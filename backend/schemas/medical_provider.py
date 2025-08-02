@@ -112,6 +112,15 @@ class MedicalProviderSearchParams(BaseModel):
     sort_by: Optional[str] = Field("name", description="Sort by: name, distance, created_at")
     sort_order: Optional[str] = Field("asc", description="Sort order: asc, desc")
 
+class MedicalSearchRequest(BaseModel):
+    location_type: str  # "current" or "zipcode"
+    zipcode: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    radius: Optional[int] = 5000  # meters, default 5km
+    specialty: Optional[str] = None
+    query: Optional[str] = None  # search term for name/specialty
+
 class MedicalProviderListResponse(BaseModel):
     providers: List[MedicalProviderResponse]
     total: int
