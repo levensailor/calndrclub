@@ -10,12 +10,19 @@ import os
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlalchemy import create_engine, text
-from core.database import DATABASE_URL
+
 from core.config import settings
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+DB_USER="calndr_user"
+DB_PASSWORD="MChksLq[i2W4OEkxAC8dPKVNzPpaNgI!"
+DB_HOST="calndr-staging-db.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com"
+DB_PORT="5432"
+DB_NAME="calndr"
+DATABASE_URL=f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
 
 def create_medical_tables():
     """Create medical providers and medications tables"""

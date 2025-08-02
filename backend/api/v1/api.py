@@ -4,7 +4,7 @@ from .endpoints import (
     auth, users, family, events, custody, notifications, profile, reminders,
     babysitters, emergency_contacts, group_chat, children, daycare_providers, school_providers,
     weather, school_events, themes, schedule_templates, journal, phone_verification,
-    medical_providers, medications
+    medical_providers, medications, health
 )
 
 api_router = APIRouter()
@@ -32,3 +32,4 @@ api_router.include_router(journal.router, prefix="/journal", tags=["journal"])
 api_router.include_router(phone_verification.router, prefix="/phone-verification", tags=["phone_verification"])
 api_router.include_router(medical_providers.router, prefix="/medical-providers", tags=["medical_providers"])
 api_router.include_router(medications.router, prefix="/medications", tags=["medications"])
+api_router.include_router(health.router, prefix="/health", tags=["health"])

@@ -129,7 +129,7 @@ async def request_validation_middleware(request: Request, call_next):
         
         # Process the request with timeout protection
         try:
-            response = await asyncio.wait_for(call_next(request), timeout=30.0)
+            response = await asyncio.wait_for(call_next(request), timeout=60.0)  # Increased timeout to 60 seconds
             return response
         except asyncio.TimeoutError:
             logger.warning(f"Request timeout from {request.client.host} for {request.url.path}")
