@@ -4,6 +4,9 @@ Handles CRUD operations for medical providers
 """
 
 import logging
+import os
+import httpx
+import math
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
@@ -388,93 +391,137 @@ async def search_medical_providers_post(
     current_user: dict = Depends(get_current_user)
 ):
     """
-    Search medical providers by location with POST request
-    Returns results in format expected by frontend
+    Search for medical providers using Google Places API
     """
     try:
-        # Convert radius from meters to miles for consistency with GET endpoint
-        radius_miles = search_data.radius / 1609.34 if search_data.radius else 25.0
+        # Get Google Places API key from environment
+        google_api_key = os.getenv("GOOGLE_PLACES_API_KEY")
+        if not google_api_key:
+            raise HTTPException(status_code=500, detail="Google Places API key not configured")
         
-        family_id = current_user["family_id"]
-        logger.info(f"Medical provider search for family_id: {family_id} (type: {type(family_id)})")
+        logger.info(f"Medical provider search: location_type={search_data.location_type}, "
+                   f"lat={search_data.latitude}, lng={search_data.longitude}, "
+                   f"radius={search_data.radius}m, specialty={search_data.specialty}")
         
-        # Build base query
-        query = medical_providers.select().where(
-            medical_providers.c.family_id == family_id
-        )
-        
-        # Debug: Check total providers for this family
-        total_providers = await database.fetch_val(
-            "SELECT COUNT(*) FROM medical_providers WHERE family_id = :family_id",
-            {"family_id": family_id}
-        )
-        logger.info(f"Total medical providers for family {family_id}: {total_providers}")
-        
-        # Debug: Log search parameters
-        logger.info(f"Search parameters: location_type={search_data.location_type}, "
-                   f"latitude={search_data.latitude}, longitude={search_data.longitude}, "
-                   f"radius={search_data.radius}m ({radius_miles} miles), "
-                   f"specialty={search_data.specialty}, query={search_data.query}")
-        
-        # Apply text search if provided
-        if search_data.query:
-            search_filter = or_(
-                medical_providers.c.name.ilike(f"%{search_data.query}%"),
-                medical_providers.c.specialty.ilike(f"%{search_data.query}%"),
-                medical_providers.c.address.ilike(f"%{search_data.query}%")
-            )
-            query = query.where(search_filter)
-            logger.info(f"Applied text search filter for query: {search_data.query}")
-        
-        # Apply specialty filter if provided
+        # Build search query for medical providers
+        search_terms = []
         if search_data.specialty:
-            query = query.where(
-                medical_providers.c.specialty.ilike(f"%{search_data.specialty}%")
-            )
-            logger.info(f"Applied specialty filter: {search_data.specialty}")
-        
-        # Get all matching providers
-        providers = await database.fetch_all(query)
-        logger.info(f"Database query returned {len(providers)} providers before location filtering")
-        
-        # Convert to list of dictionaries
-        provider_list = []
-        for provider in providers:
-            provider_dict = dict(provider)
-            provider_list.append(provider_dict)
-        
-        # Apply location-based filtering and distance calculation
-        if search_data.latitude is not None and search_data.longitude is not None:
-            logger.info(f"Applying location filtering at lat={search_data.latitude}, lng={search_data.longitude}, radius={radius_miles} miles")
-            provider_list = location_service.search_providers_by_location(
-                provider_list, search_data.latitude, search_data.longitude, radius_miles
-            )
-            logger.info(f"After location filtering: {len(provider_list)} providers remain")
-            # Sort by distance by default when location is provided
-            provider_list.sort(key=lambda x: x.get('distance', float('inf')))
+            search_terms.append(search_data.specialty)
         else:
-            logger.info("No location filtering applied - no coordinates provided")
+            search_terms.extend(["doctor", "physician", "medical", "clinic", "hospital"])
         
-        # Convert to frontend-expected format (MedicalSearchResult)
+        # Search for medical providers using Google Places API
+        if search_data.location_type == "zipcode" and search_data.zipcode:
+            # Use new Places API (New) Text Search for ZIP code searches
+            places_url = "https://places.googleapis.com/v1/places:searchText"
+            headers = {
+                "Content-Type": "application/json",
+                "X-Goog-Api-Key": google_api_key,
+                "X-Goog-FieldMask": "places.id,places.displayName,places.formattedAddress,places.nationalPhoneNumber,places.rating,places.websiteUri,places.businessStatus"
+            }
+            
+            query_text = f"{' '.join(search_terms)} near {search_data.zipcode}"
+            body = {
+                "textQuery": query_text,
+                "maxResultCount": 20
+            }
+            use_distance_calculation = False
+            use_new_api = True
+            
+        elif search_data.location_type == "current" and search_data.latitude and search_data.longitude:
+            # Use legacy Nearby Search API for current location searches
+            places_url = "https://maps.googleapis.com/maps/api/place/nearbysearch/json"
+            
+            # Build keyword for medical search
+            keyword = " OR ".join(search_terms)
+            
+            params = {
+                "location": f"{search_data.latitude},{search_data.longitude}",
+                "radius": search_data.radius,
+                "type": "hospital",  # Primary type
+                "keyword": keyword,
+                "key": google_api_key
+            }
+            use_distance_calculation = True
+            use_new_api = False
+            latitude = search_data.latitude
+            longitude = search_data.longitude
+            
+        else:
+            raise HTTPException(status_code=400, detail="Invalid location data")
+        
+        async with httpx.AsyncClient() as client:
+            if use_new_api:
+                # Use POST for new Places API
+                places_response = await client.post(places_url, headers=headers, json=body)
+            else:
+                # Use GET for legacy API
+                places_response = await client.get(places_url, params=params)
+        
+        if places_response.status_code != 200:
+            logger.error(f"Google Places API error: {places_response.status_code} - {places_response.text}")
+            raise HTTPException(status_code=500, detail="Error searching medical providers")
+        
+        places_data = places_response.json()
         search_results = []
-        for provider in provider_list:
-            # Transform backend fields to frontend expected fields
-            search_result = MedicalSearchResult(
-                id=str(provider.get('id', '')),
-                name=provider.get('name', ''),
-                specialty=provider.get('specialty'),
-                address=provider.get('address', ''),
-                phone_number=provider.get('phone'),  # backend uses 'phone', frontend expects 'phone_number'
-                website=provider.get('website'),
-                rating=None,  # Backend doesn't have rating, could be added later
-                place_id=None,  # Backend doesn't have place_id, could be added later
-                distance=provider.get('distance')
-            )
-            search_results.append(search_result)
+        
+        if use_new_api:
+            # Process new API response format
+            places = places_data.get("places", [])
+            logger.info(f"New Places API returned {len(places)} results")
+            
+            for place in places:
+                # Calculate distance if using zipcode search (approximate)
+                distance = None
+                
+                result = MedicalSearchResult(
+                    id=place.get("id", ""),
+                    name=place.get("displayName", {}).get("text", ""),
+                    specialty=search_data.specialty,  # Use the searched specialty
+                    address=place.get("formattedAddress", ""),
+                    phone_number=place.get("nationalPhoneNumber"),
+                    website=place.get("websiteUri"),
+                    rating=place.get("rating"),
+                    place_id=place.get("id", ""),
+                    distance=distance
+                )
+                search_results.append(result)
+                
+        else:
+            # Process legacy API response format
+            places = places_data.get("results", [])
+            logger.info(f"Legacy Places API returned {len(places)} results")
+            
+            for place in places:
+                # Calculate distance using coordinates
+                distance = None
+                if use_distance_calculation and "geometry" in place and "location" in place["geometry"]:
+                    place_lat = place["geometry"]["location"]["lat"]
+                    place_lng = place["geometry"]["location"]["lng"]
+                    distance = calculate_distance(latitude, longitude, place_lat, place_lng)
+                
+                # Format phone number
+                phone = place.get("formatted_phone_number") or place.get("international_phone_number")
+                
+                result = MedicalSearchResult(
+                    id=place.get("place_id", ""),
+                    name=place.get("name", ""),
+                    specialty=search_data.specialty,  # Use the searched specialty
+                    address=place.get("vicinity", ""),
+                    phone_number=phone,
+                    website=place.get("website"),
+                    rating=place.get("rating"),
+                    place_id=place.get("place_id", ""),
+                    distance=distance
+                )
+                search_results.append(result)
+        
+        # Sort by distance if available
+        if use_distance_calculation:
+            search_results.sort(key=lambda x: x.distance if x.distance is not None else float('inf'))
         
         total = len(search_results)
-        
-        logger.info(f"Medical provider search returned {total} results for family {current_user['family_id']}")
+        logger.info(f"Medical provider search returned {total} results")
         
         return MedicalSearchResponse(
             results=search_results,
@@ -484,5 +531,26 @@ async def search_medical_providers_post(
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error searching medical providers (POST): {e}")
-        raise HTTPException(status_code=500, detail="Internal server error") 
+        logger.error(f"Error searching medical providers: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+def calculate_distance(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """
+    Calculate distance between two points in meters using Haversine formula
+    """
+    # Earth's radius in meters
+    R = 6371000
+    
+    # Convert degrees to radians
+    lat1_rad = math.radians(lat1)
+    lat2_rad = math.radians(lat2)
+    delta_lat = math.radians(lat2 - lat1)
+    delta_lng = math.radians(lng2 - lng1)
+    
+    # Haversine formula
+    a = (math.sin(delta_lat / 2) ** 2 + 
+         math.cos(lat1_rad) * math.cos(lat2_rad) * 
+         math.sin(delta_lng / 2) ** 2)
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    
+    return R * c 
