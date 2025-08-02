@@ -395,10 +395,26 @@ async def search_medical_providers_post(
         # Convert radius from meters to miles for consistency with GET endpoint
         radius_miles = search_data.radius / 1609.34 if search_data.radius else 25.0
         
+        family_id = current_user["family_id"]
+        logger.info(f"Medical provider search for family_id: {family_id} (type: {type(family_id)})")
+        
         # Build base query
         query = medical_providers.select().where(
-            medical_providers.c.family_id == current_user["family_id"]
+            medical_providers.c.family_id == family_id
         )
+        
+        # Debug: Check total providers for this family
+        total_providers = await database.fetch_val(
+            "SELECT COUNT(*) FROM medical_providers WHERE family_id = :family_id",
+            {"family_id": family_id}
+        )
+        logger.info(f"Total medical providers for family {family_id}: {total_providers}")
+        
+        # Debug: Log search parameters
+        logger.info(f"Search parameters: location_type={search_data.location_type}, "
+                   f"latitude={search_data.latitude}, longitude={search_data.longitude}, "
+                   f"radius={search_data.radius}m ({radius_miles} miles), "
+                   f"specialty={search_data.specialty}, query={search_data.query}")
         
         # Apply text search if provided
         if search_data.query:
@@ -408,15 +424,18 @@ async def search_medical_providers_post(
                 medical_providers.c.address.ilike(f"%{search_data.query}%")
             )
             query = query.where(search_filter)
+            logger.info(f"Applied text search filter for query: {search_data.query}")
         
         # Apply specialty filter if provided
         if search_data.specialty:
             query = query.where(
                 medical_providers.c.specialty.ilike(f"%{search_data.specialty}%")
             )
+            logger.info(f"Applied specialty filter: {search_data.specialty}")
         
         # Get all matching providers
         providers = await database.fetch_all(query)
+        logger.info(f"Database query returned {len(providers)} providers before location filtering")
         
         # Convert to list of dictionaries
         provider_list = []
@@ -426,11 +445,15 @@ async def search_medical_providers_post(
         
         # Apply location-based filtering and distance calculation
         if search_data.latitude is not None and search_data.longitude is not None:
+            logger.info(f"Applying location filtering at lat={search_data.latitude}, lng={search_data.longitude}, radius={radius_miles} miles")
             provider_list = location_service.search_providers_by_location(
                 provider_list, search_data.latitude, search_data.longitude, radius_miles
             )
+            logger.info(f"After location filtering: {len(provider_list)} providers remain")
             # Sort by distance by default when location is provided
             provider_list.sort(key=lambda x: x.get('distance', float('inf')))
+        else:
+            logger.info("No location filtering applied - no coordinates provided")
         
         # Convert to frontend-expected format (MedicalSearchResult)
         search_results = []
