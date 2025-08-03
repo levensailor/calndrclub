@@ -20,25 +20,6 @@ from schemas.medical_provider import (
 
 router = APIRouter()
 
-@router.get("/debug/auth")
-async def debug_auth(current_user = Depends(get_current_user)):
-    """Debug endpoint to test authentication."""
-    return {
-        "authenticated": True,
-        "user_id": str(current_user['id']),
-        "family_id": str(current_user['family_id']),
-        "email": current_user.get('email', 'Unknown')
-    }
-
-@router.post("/debug/test-create")
-async def debug_test_create(provider_data: MedicalProviderCreate, current_user = Depends(get_current_user)):
-    """Debug endpoint to test medical provider creation without database."""
-    return {
-        "received_data": provider_data.dict(),
-        "user_authenticated": True,
-        "user_id": str(current_user['id']),
-        "family_id": str(current_user['family_id'])
-    }
 
 @router.get("/", response_model=List[MedicalProviderResponse])
 async def get_medical_providers(current_user = Depends(get_current_user)):

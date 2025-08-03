@@ -29,7 +29,8 @@ class MedicationBase(BaseModel):
         return v
 
 class MedicationCreate(MedicationBase):
-    family_id: str = Field(..., description="Family ID")
+    # family_id is set automatically from current_user in the endpoint
+    pass
 
 class MedicationUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
@@ -59,8 +60,8 @@ class MedicationUpdate(BaseModel):
 class MedicationResponse(MedicationBase):
     id: int
     family_id: str
-    created_at: datetime
-    updated_at: datetime
+    created_at: str  # Changed to string for consistency with frontend expectations
+    updated_at: str  # Changed to string for consistency with frontend expectations
     next_reminder: Optional[datetime] = Field(None, description="Next reminder time")
 
     class Config:

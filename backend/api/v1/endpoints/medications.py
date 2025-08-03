@@ -123,9 +123,9 @@ async def create_medication(
     Create a new medication
     """
     try:
-        # Validate family ownership
-        if medication_data.family_id != current_user["family_id"]:
-            raise HTTPException(status_code=403, detail="Access denied")
+        # Set family_id from current user (don't require it in request)
+        medication_dict = medication_data.dict()
+        medication_dict["family_id"] = current_user["family_id"]
         
         # Validate date range
         if medication_data.start_date and medication_data.end_date:
@@ -136,8 +136,7 @@ async def create_medication(
         if medication_data.reminder_enabled and not medication_data.reminder_time:
             raise HTTPException(status_code=422, detail="Reminder time is required when reminders are enabled")
         
-        # Prepare data
-        medication_dict = medication_data.dict()
+        # Prepare data with timestamps
         medication_dict["created_at"] = datetime.now()
         medication_dict["updated_at"] = datetime.now()
         
