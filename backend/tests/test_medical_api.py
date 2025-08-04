@@ -13,6 +13,7 @@ from main import app
 from core.database import get_db
 from core.config import settings
 
+
 # Test database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test.db"
 engine = create_engine(SQLALCHEMY_DATABASE_URL, connect_args={"check_same_thread": False})
