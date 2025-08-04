@@ -278,7 +278,7 @@ async def search_medical_providers(
         elif search_data.specialty:
             search_terms.append(search_data.specialty)
         else:
-            search_terms.extend(["doctor", "physician", "medical", "clinic", "hospital"])
+            search_terms.extend(["primary care", "physician", "pediatrician"])
         
         # Search for medical providers using Google Places API
         if search_data.location_type == "zipcode" and search_data.zipcode:
