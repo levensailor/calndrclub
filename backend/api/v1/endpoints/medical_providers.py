@@ -268,11 +268,14 @@ async def search_medical_providers(
         
         logger.info(f"Medical provider search: location_type={search_data.location_type}, "
                    f"lat={search_data.latitude}, lng={search_data.longitude}, "
-                   f"radius={search_data.radius}m, specialty={search_data.specialty}")
+                   f"radius={search_data.radius}m, specialty={search_data.specialty}, query={search_data.query}")
         
         # Build search query for medical providers
         search_terms = []
-        if search_data.specialty:
+        if search_data.query:
+            # If user provided specific search terms, use those
+            search_terms.append(search_data.query)
+        elif search_data.specialty:
             search_terms.append(search_data.specialty)
         else:
             search_terms.extend(["doctor", "physician", "medical", "clinic", "hospital"])
