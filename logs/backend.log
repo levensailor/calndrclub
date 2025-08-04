@@ -1,0 +1,29 @@
+2025-07-17 09:57:17 PM EST - INFO - [<string>:3] - Testing new timestamp format with AM/PM
+2025-07-17 09:57:17 PM EST - WARNING - [<string>:4] - This is a warning message
+2025-07-17 09:57:17 PM EST - ERROR - [<string>:5] - This is an error message
+2025-07-17 09:58:10 PM EST - INFO - [<string>:3] - New AM/PM timestamp format test for file logging
+2025-07-17 09:58:39 PM EST - INFO - [<string>:8] - Testing fresh logger setup with new AM/PM format
+2025-07-17 09:58:40 PM EST - WARNING - [<string>:9] - This should appear in both console and file with AM/PM time
+2025-07-17 09:59:59 PM EST - INFO - [<string>:3] - Testing new AM/PM timestamp format after process restart
+2025-07-17 09:59:59 PM EST - WARNING - [<string>:4] - This warning should show AM/PM time
+2025-07-17 09:59:59 PM EST - ERROR - [<string>:5] - This error should also show AM/PM time
+2025-07-17 10:00:17 PM EST - INFO - [<string>:14] - Fresh logger test with AM/PM format
+2025-07-17 10:00:17 PM EST - WARNING - [<string>:15] - This should appear in both console and file
+2025-07-17 10:02:25 PM EST - INFO - [<string>:4] - Final test: Backend logging now uses 12-hour AM/PM format
+2025-07-17 10:02:25 PM EST - WARNING - [<string>:5] - Time stamps show AM/PM instead of 24-hour format
+2025-07-17 10:02:25 PM EST - ERROR - [<string>:6] - All log levels display the new timestamp format correctly
+2025-07-18 12:06:51 PM EST - INFO - [credentials.py:1147] - Found credentials in environment variables.
+2025-07-18 12:06:52 PM EST - INFO - [notification_service.py:17] - AWS SNS client initialized successfully.
+2025-07-18 12:06:53 PM EST - INFO - [core.py:113] - Connected to database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-18 12:07:15 PM EST - INFO - [core.py:149] - Disconnected from database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-18 12:07:16 PM EST - INFO - [credentials.py:1147] - Found credentials in environment variables.
+2025-07-18 12:07:16 PM EST - INFO - [notification_service.py:17] - AWS SNS client initialized successfully.
+2025-07-18 12:07:17 PM EST - INFO - [core.py:113] - Connected to database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-18 12:07:29 PM EST - INFO - [core.py:149] - Disconnected from database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-19 09:45:02 AM EST - INFO - [credentials.py:1147] - Found credentials in environment variables.
+2025-07-19 09:45:02 AM EST - INFO - [notification_service.py:17] - AWS SNS client initialized successfully.
+2025-07-19 09:45:03 AM EST - INFO - [core.py:113] - Connected to database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-19 09:45:46 AM EST - INFO - [credentials.py:1147] - Found credentials in environment variables.
+2025-07-19 09:45:46 AM EST - INFO - [notification_service.py:17] - AWS SNS client initialized successfully.
+2025-07-19 09:45:47 AM EST - INFO - [core.py:113] - Connected to database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
+2025-07-19 09:45:47 AM EST - INFO - [core.py:149] - Disconnected from database postgresql+asyncpg://postgres:********@cal-db-instance.cjy8vmu6rtrc.us-east-1.rds.amazonaws.com:5432/postgres
