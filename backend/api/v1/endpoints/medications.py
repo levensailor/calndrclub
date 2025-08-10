@@ -20,7 +20,9 @@ from schemas.medication import (
     MedicationListParams,
     MedicationListResponse,
     MedicationReminderResponse,
-    MedicationReminderListResponse
+    MedicationReminderListResponse,
+    MedicationPreset,
+    MedicationPresetListResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -403,3 +405,60 @@ async def get_medication_reminders(
     except Exception as e:
         logger.error(f"Error fetching medication reminders: {e}")
         raise HTTPException(status_code=500, detail="Internal server error") 
+
+
+@router.get("/presets", response_model=MedicationPresetListResponse)
+async def get_medication_presets(current_user: dict = Depends(get_current_user)):
+    """
+    Returns a curated list of common pediatric medications with common dosages and frequencies.
+    Also supports custom entries on the client side; this endpoint is for convenience presets only.
+    """
+    try:
+        # These presets are intentionally static and opinionated for great UX.
+        presets: list[MedicationPreset] = [
+            MedicationPreset(
+                name="Tylenol (Acetaminophen)",
+                common_dosages=["80 mg", "160 mg", "240 mg", "320 mg", "500 mg"],
+                common_frequencies=["Every 4 hours", "Every 6 hours", "Every 8 hours", "As needed"],
+                default_dosage="160 mg",
+                default_frequency="Every 6 hours",
+                aliases=["Acetaminophen", "Paracetamol"]
+            ),
+            MedicationPreset(
+                name="Motrin (Ibuprofen)",
+                common_dosages=["50 mg", "100 mg", "200 mg", "400 mg"],
+                common_frequencies=["Every 6 hours", "Every 8 hours", "As needed"],
+                default_dosage="100 mg",
+                default_frequency="Every 8 hours",
+                aliases=["Ibuprofen", "Advil"]
+            ),
+            MedicationPreset(
+                name="Zyrtec (Cetirizine)",
+                common_dosages=["2.5 mg", "5 mg", "10 mg"],
+                common_frequencies=["Once daily", "As needed"],
+                default_dosage="5 mg",
+                default_frequency="Once daily",
+                aliases=["Cetirizine"]
+            ),
+            MedicationPreset(
+                name="Benadryl (Diphenhydramine)",
+                common_dosages=["6.25 mg", "12.5 mg", "25 mg"],
+                common_frequencies=["Every 6 hours", "As needed"],
+                default_dosage="12.5 mg",
+                default_frequency="As needed",
+                aliases=["Diphenhydramine"]
+            ),
+            MedicationPreset(
+                name="Amoxicillin",
+                common_dosages=["125 mg", "250 mg", "400 mg"],
+                common_frequencies=["Twice daily", "Three times daily"],
+                default_dosage="400 mg",
+                default_frequency="Twice daily",
+                aliases=[]
+            ),
+        ]
+
+        return MedicationPresetListResponse(presets=presets)
+    except Exception as e:
+        logger.error(f"Error fetching medication presets: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

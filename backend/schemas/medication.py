@@ -97,3 +97,17 @@ class MedicationReminderResponse(BaseModel):
 class MedicationReminderListResponse(BaseModel):
     reminders: List[MedicationReminderResponse]
     total: int 
+
+
+# --- Presets ---
+
+class MedicationPreset(BaseModel):
+    name: str
+    common_dosages: List[str]
+    common_frequencies: List[str]
+    default_dosage: Optional[str] = None
+    default_frequency: Optional[str] = None
+    aliases: Optional[List[str]] = None
+
+class MedicationPresetListResponse(BaseModel):
+    presets: List[MedicationPreset]
