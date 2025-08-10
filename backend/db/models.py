@@ -322,3 +322,46 @@ journal_entries = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
     sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
 )
+
+# Medical providers table
+medical_providers = sqlalchemy.Table(
+    "medical_providers",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("family_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("families.id", ondelete="CASCADE"), nullable=False),
+    sqlalchemy.Column("name", sqlalchemy.String(255), nullable=False),
+    sqlalchemy.Column("specialty", sqlalchemy.String(255), nullable=True),
+    sqlalchemy.Column("address", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("phone", sqlalchemy.String(50), nullable=True),
+    sqlalchemy.Column("email", sqlalchemy.String(255), nullable=True),
+    sqlalchemy.Column("website", sqlalchemy.String(500), nullable=True),
+    sqlalchemy.Column("latitude", sqlalchemy.DECIMAL(10, 8), nullable=True),
+    sqlalchemy.Column("longitude", sqlalchemy.DECIMAL(11, 8), nullable=True),
+    sqlalchemy.Column("zip_code", sqlalchemy.String(20), nullable=True),
+    sqlalchemy.Column("notes", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("google_place_id", sqlalchemy.String(255), nullable=True),
+    sqlalchemy.Column("rating", sqlalchemy.Numeric(3, 2), nullable=True),
+    sqlalchemy.Column("created_by_user_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
+    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
+)
+
+# Medications table
+medications = sqlalchemy.Table(
+    "medications",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("family_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("families.id", ondelete="CASCADE"), nullable=False),
+    sqlalchemy.Column("name", sqlalchemy.String(255), nullable=False),
+    sqlalchemy.Column("dosage", sqlalchemy.String(100), nullable=True),
+    sqlalchemy.Column("frequency", sqlalchemy.String(100), nullable=True),
+    sqlalchemy.Column("instructions", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("start_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("end_date", sqlalchemy.Date, nullable=True),
+    sqlalchemy.Column("is_active", sqlalchemy.Boolean, default=True, nullable=True),
+    sqlalchemy.Column("reminder_enabled", sqlalchemy.Boolean, default=False, nullable=True),
+    sqlalchemy.Column("reminder_time", sqlalchemy.Time, nullable=True),
+    sqlalchemy.Column("notes", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
+    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
+)

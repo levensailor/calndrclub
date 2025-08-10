@@ -4,8 +4,8 @@ import hashlib
 import asyncio
 from typing import Optional, Dict, Any, Union
 from datetime import datetime, timedelta
-import aioredis
-from aioredis import Redis
+import redis.asyncio as redis
+from redis.asyncio import Redis
 
 from core.config import settings
 from core.logging import logger
@@ -21,20 +21,23 @@ class RedisService:
     async def connect(self) -> None:
         """Initialize Redis connection pool."""
         try:
-            # Build Redis URL
-            auth_string = ""
+            # Build Redis connection parameters
+            connection_kwargs = {
+                'host': settings.REDIS_HOST,
+                'port': settings.REDIS_PORT,
+                'db': settings.REDIS_DB,
+                'socket_timeout': settings.REDIS_SOCKET_TIMEOUT,
+                'retry_on_timeout': True,
+                'decode_responses': True,
+                'max_connections': settings.REDIS_MAX_CONNECTIONS
+            }
+            
+            # Add password if configured
             if settings.REDIS_PASSWORD:
-                auth_string = f":{settings.REDIS_PASSWORD}@"
+                connection_kwargs['password'] = settings.REDIS_PASSWORD
             
-            redis_url = f"redis://{auth_string}{settings.REDIS_HOST}:{settings.REDIS_PORT}/{settings.REDIS_DB}"
-            
-            self.redis_pool = aioredis.from_url(
-                redis_url,
-                max_connections=settings.REDIS_MAX_CONNECTIONS,
-                socket_timeout=settings.REDIS_SOCKET_TIMEOUT,
-                retry_on_timeout=True,
-                decode_responses=True
-            )
+            # Create Redis connection
+            self.redis_pool = redis.Redis(**connection_kwargs)
             
             # Test connection
             await self.redis_pool.ping()
@@ -48,7 +51,7 @@ class RedisService:
     async def disconnect(self) -> None:
         """Close Redis connection pool."""
         if self.redis_pool:
-            await self.redis_pool.close()
+            await self.redis_pool.aclose()
             logger.info("Disconnected from Redis")
     
     async def _ensure_connection(self) -> bool:
@@ -149,10 +152,17 @@ class RedisService:
         
         try:
             cache_key = self._generate_cache_key(key)
-            result = await self.redis_pool.delete(cache_key)
+            # Add timeout protection to prevent hanging on slow Redis operations
+            result = await asyncio.wait_for(
+                self.redis_pool.delete(cache_key),
+                timeout=2.0  # Match the timeout used in get() method
+            )
             logger.debug(f"Deleted cache key: {cache_key}")
             return bool(result)
             
+        except asyncio.TimeoutError:
+            logger.warning(f"Redis delete operation timed out for key {key} - skipping cache invalidation")
+            return False
         except Exception as e:
             logger.error(f"Error deleting cached data for key {key}: {e}")
             return False

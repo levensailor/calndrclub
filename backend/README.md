@@ -25,6 +25,7 @@ backend/
 
 ## Features
 
+
 ✅ **Fully Implemented Endpoints:**
 - Authentication (`/auth`)
 - User Management (`/users`)
