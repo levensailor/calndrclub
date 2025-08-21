@@ -5,6 +5,7 @@ Handles CRUD operations for medications
 
 import logging
 from typing import List, Optional
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
@@ -54,6 +55,20 @@ def _serialize_medication_row(row: dict) -> dict:
         except Exception:
             med["updated_at"] = str(med["updated_at"])  # fallback
     return med
+
+
+def _kv_log(d: dict) -> str:
+    """Create a JSON string of key -> {value, type} for safe logging."""
+    try:
+        serializable = {}
+        for k, v in (d or {}).items():
+            try:
+                serializable[k] = {"value": str(v), "type": type(v).__name__}
+            except Exception:
+                serializable[k] = {"value": "<unrepr>", "type": type(v).__name__}
+        return json.dumps(serializable, ensure_ascii=False)
+    except Exception:
+        return str(d)
 
 @router.get("/", response_model=MedicationListResponse)
 async def get_medications(
@@ -153,6 +168,19 @@ async def create_medication(
     Create a new medication
     """
     try:
+        # Log incoming payload (as provided by client)
+        try:
+            incoming = medication_data.dict()
+        except Exception:
+            incoming = {}
+        logger.info(
+            "create_medication(): incoming payload kv: %s",
+            _kv_log(incoming),
+        )
+        logger.info(
+            "create_medication(): current_user kv: %s",
+            _kv_log({"family_id": current_user.get("family_id")}),
+        )
         # Set family_id from current user (don't require it in request)
         medication_dict = medication_data.dict()
         medication_dict["family_id"] = current_user["family_id"]
@@ -170,6 +198,12 @@ async def create_medication(
         medication_dict["created_at"] = datetime.now()
         medication_dict["updated_at"] = datetime.now()
         
+        # Log the finalized dict before DB insert
+        logger.info(
+            "create_medication(): final insert dict kv: %s",
+            _kv_log(medication_dict),
+        )
+
         # Insert into database
         query = medications.insert().values(**medication_dict)
         medication_id = await database.execute(query)
