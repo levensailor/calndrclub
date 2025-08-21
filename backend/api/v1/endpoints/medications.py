@@ -177,10 +177,6 @@ async def create_medication(
             "create_medication(): incoming payload kv: %s",
             _kv_log(incoming),
         )
-        logger.info(
-            "create_medication(): current_user kv: %s",
-            _kv_log({"family_id": current_user.get("family_id")}),
-        )
         # Set family_id from current user (don't require it in request)
         medication_dict = medication_data.dict()
         medication_dict["family_id"] = current_user["family_id"]
