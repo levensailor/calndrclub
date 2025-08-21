@@ -214,6 +214,7 @@ async def create_medication(
         )
         
         med_dict = dict(created_medication)
+        logger.info(med_dict)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
         med_dict = _serialize_medication_row(med_dict)
