@@ -60,8 +60,8 @@ class MedicationUpdate(BaseModel):
 class MedicationResponse(MedicationBase):
     id: int
     family_id: str
-    created_at: str  # Changed to string for consistency with frontend expectations
-    updated_at: str  # Changed to string for consistency with frontend expectations
+    created_at: str  # iOS expects strings
+    updated_at: str  # iOS expects strings
     next_reminder: Optional[datetime] = Field(None, description="Next reminder time")
 
     class Config:

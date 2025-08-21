@@ -28,6 +28,33 @@ from schemas.medication import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
+def _serialize_medication_row(row: dict) -> dict:
+    """Normalize DB row values to match MedicationResponse schema types.
+
+    - family_id: str
+    - created_at/updated_at: str (ISO 8601)
+    - next_reminder preserved if present
+    """
+    if row is None:
+        return {}
+    med = dict(row)
+    # family_id may be UUID from DB driver
+    if "family_id" in med and med["family_id"] is not None and not isinstance(med["family_id"], str):
+        med["family_id"] = str(med["family_id"])
+    # created_at/updated_at should be strings for iOS compatibility
+    if "created_at" in med and med["created_at"] is not None:
+        try:
+            med["created_at"] = med["created_at"].isoformat()
+        except Exception:
+            med["created_at"] = str(med["created_at"])  # fallback
+    if "updated_at" in med and med["updated_at"] is not None:
+        try:
+            med["updated_at"] = med["updated_at"].isoformat()
+        except Exception:
+            med["updated_at"] = str(med["updated_at"])  # fallback
+    return med
+
 @router.get("/", response_model=MedicationListResponse)
 async def get_medications(
     is_active: Optional[bool] = Query(None, description="Filter by active status"),
@@ -100,6 +127,7 @@ async def get_medications(
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 # This would be calculated based on the reminder system
                 med_dict["next_reminder"] = None  # TODO: Implement reminder calculation
+            med_dict = _serialize_medication_row(med_dict)
             response_medications.append(MedicationResponse(**med_dict))
         
         total_pages = (total + limit - 1) // limit
@@ -154,7 +182,7 @@ async def create_medication(
         med_dict = dict(created_medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -187,7 +215,7 @@ async def get_medication(
         med_dict = dict(medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -249,7 +277,7 @@ async def update_medication(
         med_dict = dict(updated_medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -346,6 +374,7 @@ async def get_active_medications(
             med_dict = dict(med)
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 med_dict["next_reminder"] = None  # TODO: Calculate next reminder
+            med_dict = _serialize_medication_row(med_dict)
             response_medications.append(MedicationResponse(**med_dict))
         
         total_pages = (total + limit - 1) // limit
