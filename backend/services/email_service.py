@@ -169,7 +169,6 @@ class EmailService:
         try:
             # Create the email content
             subject = "Verify your Calndr Club account"
-            
             html_body = f"""
             <html>
                 <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
