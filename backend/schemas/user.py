@@ -63,6 +63,7 @@ class UserRegistrationResponse(BaseSchema):
     token_type: str
     message: str
     should_skip_onboarding: bool = False
+    requires_email_verification: bool = False
 
 class UserProfile(BaseSchema):
     """Schema for user profile information."""

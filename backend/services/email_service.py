@@ -93,6 +93,89 @@ class EmailService:
         except Exception as e:
             logger.error(f"Failed to send coparent invitation email to {coparent_email}: {e}")
             return False
+    
+    async def send_verification_email(self, email: str, name: str, verification_code: str) -> bool:
+        """Send an email verification code to the user."""
+        if not self.smtp_user or not self.smtp_password:
+            logger.warning("SMTP credentials not configured. Cannot send verification email.")
+            return False
+        
+        try:
+            # Create the email content
+            subject = "Verify your Calndr Club account"
+            
+            html_body = f"""
+            <html>
+                <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+                    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 30px;">
+                            <h1 style="color: #4A90E2; margin: 0;">Calndr Club</h1>
+                        </div>
+                        
+                        <h2 style="color: #333; margin-bottom: 20px;">Verify Your Email Address</h2>
+                        
+                        <p>Hi {name},</p>
+                        
+                        <p>Thank you for signing up for Calndr Club! To complete your registration, please verify your email address using the code below:</p>
+                        
+                        <div style="text-align: center; margin: 30px 0;">
+                            <div style="background-color: #f8f9fa; border: 2px solid #4A90E2; border-radius: 8px; padding: 20px; display: inline-block;">
+                                <span style="font-size: 32px; font-weight: bold; color: #4A90E2; letter-spacing: 4px;">{verification_code}</span>
+                            </div>
+                        </div>
+                        
+                        <p>Enter this code in the app to verify your email address and complete your registration.</p>
+                        
+                        <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                            This code will expire in 10 minutes. If you didn't request this verification, please ignore this email.
+                        </p>
+                        
+                        <div style="margin-top: 40px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; color: #666; font-size: 12px;">
+                            <p>© 2024 Calndr Club. All rights reserved.</p>
+                        </div>
+                    </div>
+                </body>
+            </html>
+            """
+            
+            text_body = f"""
+            Calndr Club - Verify Your Email Address
+            
+            Hi {name},
+            
+            Thank you for signing up for Calndr Club! To complete your registration, please verify your email address using this code:
+            
+            {verification_code}
+            
+            Enter this code in the app to verify your email address and complete your registration.
+            
+            This code will expire in 10 minutes. If you didn't request this verification, please ignore this email.
+            
+            © 2024 Calndr Club. All rights reserved.
+            """
+            
+            # Create message
+            msg = MIMEMultipart('alternative')
+            msg['Subject'] = subject
+            msg['From'] = self.smtp_user
+            msg['To'] = email
+            
+            # Add both plain text and HTML versions
+            msg.attach(MIMEText(text_body, 'plain'))
+            msg.attach(MIMEText(html_body, 'html'))
+            
+            # Send the email
+            with smtplib.SMTP(self.smtp_host, self.smtp_port) as server:
+                server.starttls()
+                server.login(self.smtp_user, self.smtp_password)
+                server.send_message(msg)
+            
+            logger.info(f"Verification email sent to {email}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Failed to send verification email to {email}: {e}")
+            return False
 
 # Global instance
 email_service = EmailService() 
