@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status
 from typing import Dict, Any
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from core.database import database
 from core.logging import logger
@@ -46,7 +46,7 @@ async def send_verification_code(
         
         # Generate verification code
         code = generate_verification_code()
-        expires_at = datetime.utcnow() + timedelta(minutes=10)  # 10 minute expiration
+        expires_at = datetime.now(timezone.utc) + timedelta(minutes=10)  # 10 minute expiration
         
         # Store or update verification code
         await database.execute(
@@ -128,7 +128,7 @@ async def verify_email_code(
                 )
             
             # Check if code is expired
-            if verification.expires_at < datetime.utcnow():
+            if verification.expires_at < datetime.now(timezone.utc):
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="Verification code has expired"
@@ -202,7 +202,7 @@ async def resend_verification_code(
         """
         last_sent = await database.fetch_one(last_sent_query, {"email": request.email})
         
-        if last_sent and (datetime.utcnow() - last_sent.created_at).total_seconds() < 60:
+        if last_sent and (datetime.now(timezone.utc) - last_sent.created_at).total_seconds() < 60:
             raise HTTPException(
                 status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                 detail="Please wait 60 seconds before requesting another code"

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from typing import List
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 from core.database import database
 from core.security import get_current_user
@@ -27,8 +27,8 @@ async def create_theme(theme: theme_schema.ThemeCreate, current_user = Depends(g
         parentTwoColor=theme.parentTwoColor,
         is_public=theme.is_public,
         created_by_user_id=current_user['id'],
-        created_at=datetime.utcnow(),
-        updated_at=datetime.utcnow()
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc)
     )
     
     await database.execute(insert_query)
@@ -99,7 +99,7 @@ async def update_theme(theme_id: uuid.UUID, theme: theme_schema.ThemeUpdate, cur
     
     # Build update data
     update_data = theme.dict(exclude_unset=True)
-    update_data['updated_at'] = datetime.utcnow()
+    update_data['updated_at'] = datetime.now(timezone.utc)
     
     # Update the theme
     update_query = themes.update().where(themes.c.id == theme_id).values(**update_data)
