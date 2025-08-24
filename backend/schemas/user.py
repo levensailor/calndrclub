@@ -45,6 +45,16 @@ class UserRegistration(BaseSchema):
     password: str
     phone_number: Optional[str] = None
 
+class UserRegistrationWithFamily(BaseSchema):
+    """Schema for user registration with family enrollment code."""
+    first_name: str
+    last_name: str
+    email: EmailStr
+    password: str
+    phone_number: Optional[str] = None
+    enrollment_code: str
+    family_id: Optional[int] = None
+
 class UserRegistrationResponse(BaseSchema):
     """Schema for user registration response."""
     user_id: str

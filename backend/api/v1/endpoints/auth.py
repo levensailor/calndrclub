@@ -9,7 +9,7 @@ from core.security import verify_password, create_access_token, get_password_has
 from core.logging import logger
 from db.models import users, families
 from schemas.auth import Token
-from schemas.user import UserRegistration, UserRegistrationResponse
+from schemas.user import UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
 from services.email_service import email_service
 from services.sms_service import sms_service
 import traceback
@@ -355,3 +355,114 @@ async def google_ios_login(request: Request):
     except Exception as e:
         logger.error(f"Google iOS login failed during token verification: {e}")
         raise HTTPException(status_code=401, detail=f"Invalid Google token: {e}")
+
+@router.post("/register-with-family", response_model=UserRegistrationResponse)
+async def register_user_with_family(registration_data: UserRegistrationWithFamily):
+    """
+    Register a new user and link them to an existing family using an enrollment code.
+    """
+    logger.info(f"Family registration attempt for email: {registration_data.email}")
+    
+    try:
+        async with database.transaction():
+            # Check if user already exists
+            existing_user_query = users.select().where(users.c.email == registration_data.email)
+            existing_user = await database.fetch_one(existing_user_query)
+            
+            if existing_user:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="User with this email already exists"
+                )
+            
+            # Validate and use the enrollment code
+            code_query = """
+                SELECT ec.id, ec.family_id, ec.created_by_user_id, ec.is_used, ec.expires_at,
+                       f.id as family_exists
+                FROM enrollment_codes ec
+                LEFT JOIN families f ON ec.family_id = f.id
+                WHERE ec.code = :code
+            """
+            code_record = await database.fetch_one(code_query, {"code": registration_data.enrollment_code.upper()})
+            
+            if not code_record:
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail="Invalid enrollment code"
+                )
+            
+            # Check if code is expired
+            if code_record.expires_at < datetime.utcnow():
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Enrollment code has expired"
+                )
+            
+            # Check if code is already used
+            if code_record.is_used:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Enrollment code has already been used"
+                )
+            
+            # Check if family still exists
+            if not code_record.family_exists:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Associated family no longer exists"
+                )
+            
+            # Hash the password
+            password_hash = get_password_hash(registration_data.password)
+            
+            # Create new user with family_id from enrollment code
+            user_id = uuid.uuid4()
+            user_insert = users.insert().values(
+                id=user_id,
+                email=registration_data.email,
+                password_hash=password_hash,
+                first_name=registration_data.first_name,
+                last_name=registration_data.last_name,
+                phone_number=registration_data.phone_number,
+                family_id=code_record.family_id,
+                status="active",
+                subscription_type="Free",
+                subscription_status="Active"
+            )
+            await database.execute(user_insert)
+            
+            # Mark the enrollment code as used
+            update_code_query = """
+                UPDATE enrollment_codes 
+                SET is_used = TRUE, used_by_user_id = :user_id, updated_at = NOW()
+                WHERE code = :code
+            """
+            await database.execute(update_code_query, {
+                "user_id": user_id,
+                "code": registration_data.enrollment_code.upper()
+            })
+            
+            logger.info(f"Created user with family enrollment: {user_id}")
+            
+            # Create access token
+            access_token = create_access_token(
+                data={"sub": uuid_to_string(user_id), "family_id": uuid_to_string(code_record.family_id)}
+            )
+            
+            # Family enrollment users should skip onboarding since they're joining existing family
+            should_skip_onboarding = True
+            
+            return {
+                "access_token": access_token,
+                "token_type": "bearer",
+                "shouldSkipOnboarding": should_skip_onboarding
+            }
+            
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Family registration failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Registration failed"
+        )
