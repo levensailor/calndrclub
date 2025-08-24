@@ -157,7 +157,7 @@ async def verify_email_code(
             
             # Code is valid - activate user account
             await database.execute(
-                "UPDATE users SET status = 'active', updated_at = NOW() WHERE id = :user_id",
+                "UPDATE users SET status = 'active' WHERE id = :user_id",
                 {"user_id": verification.user_id}
             )
             
