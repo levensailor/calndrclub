@@ -11,7 +11,7 @@ class EmailService:
     def __init__(self):
         # AWS SES configuration
         self.aws_region = getattr(settings, 'AWS_REGION', 'us-east-1')
-        self.sender_email = getattr(settings, 'SES_SENDER_EMAIL', 'noreply@calndr.club')
+        self.sender_email = getattr(settings, 'SES_SENDER_EMAIL', 'no-reply@calndr.club')
         self.sender_name = getattr(settings, 'SES_SENDER_NAME', 'Calndr Club')
         
         # Initialize SES client

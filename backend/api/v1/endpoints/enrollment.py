@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from typing import Dict, Any
 import random
 import string
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import uuid
 
 from core.database import database
@@ -73,7 +73,7 @@ async def create_enrollment_code(
                 )
             
             # Create enrollment code record
-            expires_at = datetime.utcnow() + timedelta(days=7)
+            expires_at = datetime.now(timezone.utc) + timedelta(days=7)
             
             await database.execute(
                 """
@@ -139,7 +139,7 @@ async def validate_enrollment_code(
             )
         
         # Check if code is expired
-        if code_record.expires_at < datetime.utcnow():
+        if code_record.expires_at < datetime.now(timezone.utc):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Enrollment code has expired"
