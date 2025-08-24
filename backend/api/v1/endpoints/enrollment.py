@@ -88,6 +88,18 @@ async def create_enrollment_code(
                 }
             )
             
+            # Mark user as having invited coparent
+            await database.execute(
+                """
+                UPDATE users 
+                SET coparent_invited = TRUE 
+                WHERE id = :user_id
+                """,
+                {"user_id": current_user["id"]}
+            )
+            
+            logger.info(f"Created enrollment code {code} for family {family_id}, marked coparent as invited")
+            
             return {
                 "success": True,
                 "message": "Enrollment code created successfully",
@@ -200,9 +212,10 @@ async def use_enrollment_code(
         family_id = validation_result["family_id"]
         
         async with database.transaction():
-            # Update user's family_id
+            # Update user's family_id and mark as coparent enrolled
             user_update = users.update().where(users.c.id == current_user["id"]).values(
-                family_id=family_id
+                family_id=family_id,
+                coparent_enrolled=True
             )
             await database.execute(user_update)
             

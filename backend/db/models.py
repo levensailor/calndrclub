@@ -23,6 +23,9 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("subscription_status", sqlalchemy.String, nullable=True, default="Active"),
     sqlalchemy.Column("profile_photo_url", sqlalchemy.String, nullable=True),
     sqlalchemy.Column("status", sqlalchemy.String, nullable=True, default="active"),
+    sqlalchemy.Column("enrolled", sqlalchemy.Boolean, nullable=True, default=False),
+    sqlalchemy.Column("coparent_enrolled", sqlalchemy.Boolean, nullable=True, default=False),
+    sqlalchemy.Column("coparent_invited", sqlalchemy.Boolean, nullable=True, default=False),
     sqlalchemy.Column("last_signed_in", sqlalchemy.DateTime, nullable=True, default=datetime.now),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
 )
