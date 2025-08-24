@@ -108,7 +108,7 @@ async def register_user(registration_data: UserRegistration):
                 # Generate UUID for the user
                 user_id = uuid.uuid4()
                 
-                # Create the user
+                # Create the user in pending status (requires email verification)
                 user_insert = users.insert().values(
                     id=user_id,
                     family_id=family_id,
@@ -117,6 +117,7 @@ async def register_user(registration_data: UserRegistration):
                     email=registration_data.email,
                     password_hash=password_hash,
                     phone_number=registration_data.phone_number,
+                    status="pending",  # Requires email verification
                     subscription_type="Free",
                     subscription_status="Active"
                 )
@@ -124,19 +125,32 @@ async def register_user(registration_data: UserRegistration):
                 await database.execute(user_insert)
                 logger.info(f"Created user with ID: {user_id}")
         
-        # Create access token for the new user
-        access_token = create_access_token(
-            data={"sub": uuid_to_string(user_id), "family_id": uuid_to_string(family_id)}
-        )
-        
-        return UserRegistrationResponse(
-            token_type="bearer",
-            user_id=uuid_to_string(user_id),
-            family_id=uuid_to_string(family_id),
-            access_token=access_token,
-            message="User registered successfully",
-            should_skip_onboarding=should_skip_onboarding
-        )
+        # Handle different user statuses
+        if existing_user and existing_user.get('status') == 'invited':
+            # Invited users are immediately active - create access token
+            access_token = create_access_token(
+                data={"sub": uuid_to_string(user_id), "family_id": uuid_to_string(family_id)}
+            )
+            
+            return UserRegistrationResponse(
+                token_type="bearer",
+                user_id=uuid_to_string(user_id),
+                family_id=uuid_to_string(family_id),
+                access_token=access_token,
+                message="User registered successfully",
+                should_skip_onboarding=should_skip_onboarding
+            )
+        else:
+            # New users need email verification - don't create access token yet
+            return UserRegistrationResponse(
+                token_type="bearer",
+                user_id=uuid_to_string(user_id),
+                family_id=uuid_to_string(family_id),
+                access_token="",  # Empty token - requires verification
+                message="Please check your email for a verification code",
+                should_skip_onboarding=False,
+                requires_email_verification=True
+            )
         
     except HTTPException:
         raise
@@ -465,4 +479,50 @@ async def register_user_with_family(registration_data: UserRegistrationWithFamil
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Registration failed"
+        )
+
+@router.post("/login-after-verification")
+async def login_after_verification(email: str):
+    """
+    Create access token for user after email verification is complete.
+    """
+    try:
+        # Get user details
+        user_query = """
+            SELECT id, family_id, status, first_name, last_name
+            FROM users 
+            WHERE email = :email
+        """
+        user = await database.fetch_one(user_query, {"email": email})
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        if user.status != "active":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email verification required"
+            )
+        
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": uuid_to_string(user.id), "family_id": uuid_to_string(user.family_id)}
+        )
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "shouldSkipOnboarding": False  # New users go through onboarding
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Login after verification failed: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Login failed"
         )
