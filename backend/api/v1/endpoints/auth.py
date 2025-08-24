@@ -63,17 +63,21 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             await database.execute(
                 users.update().where(users.c.id == user['id']).values(last_signed_in=datetime.now(timezone.utc))
             )
+            
+            # Create access token
+            access_token = create_access_token(
+                data={"sub": uuid_to_string(user["id"]), "family_id": uuid_to_string(user["family_id"])}
+            )
+            return {"access_token": access_token, "token_type": "bearer"}
+            
     except HTTPException:
         # Re-raise HTTP exceptions (like 401) without modification
         raise
     except Exception as db_error:
         logger.error(f"Login database error: {db_error}")
+        logger.error(f"Error type: {type(db_error).__name__}")
+        logger.error(f"Error details: {str(db_error)}")
         raise HTTPException(status_code=500, detail="Database error during login")
-    
-    access_token = create_access_token(
-        data={"sub": uuid_to_string(user["id"]), "family_id": uuid_to_string(user["family_id"])}
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
 
 @router.post("/register", response_model=UserRegistrationResponse)
 async def register_user(registration_data: UserRegistration):
