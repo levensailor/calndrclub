@@ -81,12 +81,12 @@ This script will:
 
 1. **Verify Sender Email**
    ```bash
-   aws ses verify-email-identity --email-address noreply@calndr.club --region us-east-1
+   aws ses verify-email-identity --email-address no-reply@calndr.club --region us-east-1
    ```
 
 2. **Check Verification Status**
    ```bash
-   aws ses get-identity-verification-attributes --identities noreply@calndr.club --region us-east-1
+   aws ses get-identity-verification-attributes --identities no-reply@calndr.club --region us-east-1
    ```
 
 3. **Request Production Access** (if needed)
