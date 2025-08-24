@@ -10,6 +10,7 @@ from core.logging import logger
 from db.models import users, families
 from schemas.auth import Token
 from schemas.user import UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
+from schemas.auth import LoginAfterVerificationRequest
 from services.email_service import email_service
 from services.sms_service import sms_service
 import traceback
@@ -482,7 +483,7 @@ async def register_user_with_family(registration_data: UserRegistrationWithFamil
         )
 
 @router.post("/login-after-verification")
-async def login_after_verification(email: str):
+async def login_after_verification(request: LoginAfterVerificationRequest):
     """
     Create access token for user after email verification is complete.
     """
@@ -493,7 +494,7 @@ async def login_after_verification(email: str):
             FROM users 
             WHERE email = :email
         """
-        user = await database.fetch_one(user_query, {"email": email})
+        user = await database.fetch_one(user_query, {"email": request.email})
         
         if not user:
             raise HTTPException(
