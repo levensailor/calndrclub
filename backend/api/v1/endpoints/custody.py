@@ -155,7 +155,7 @@ async def update_custody_by_date(custody_date: date, custody_data: CustodyRecord
         
         logger.info(f"⚡ Updating custody record {existing_record['id']} for date {custody_date}")
         
-        # Update the existing record
+        # Update the existing record (primary day being changed)
         update_query = custody.update().where(custody.c.id == existing_record['id']).values(
             custodian_id=custody_data.custodian_id,
             actor_id=actor_id,
@@ -164,6 +164,118 @@ async def update_custody_by_date(custody_date: date, custody_data: CustodyRecord
             handoff_location=custody_data.handoff_location
         )
         await database.execute(update_query)
+
+        # After updating today's custodian, recalculate adjacency-based handoff flags
+        # 1) Ensure today's handoff flag matches previous-day ownership if client didn't specify
+        try:
+            previous_date = custody_date - timedelta(days=1)
+            previous_record = await database.fetch_one(
+                custody.select().where(
+                    (custody.c.family_id == family_id) &
+                    (custody.c.date == previous_date)
+                )
+            )
+
+            if custody_data.handoff_day is None:
+                # If client didn't specify, derive from adjacency with previous day
+                derived_today_handoff = bool(previous_record) and previous_record['custodian_id'] != custody_data.custodian_id
+                logger.info(f"📐 Derived today's handoff from previous day: {derived_today_handoff} (prev={previous_record['custodian_id'] if previous_record else None}, today={custody_data.custodian_id})")
+
+                # If derived value differs from what we stored, update it and set/clear defaults
+                if derived_today_handoff != handoff_day_value:
+                    default_time = None
+                    default_location = None
+                    if derived_today_handoff:
+                        # Set sensible defaults if turning handoff on and time not provided
+                        weekday = custody_date.weekday()  # Monday=0 .. Sunday=6
+                        if weekday >= 5:  # weekend
+                            default_time = datetime.strptime('12:00', '%H:%M').time()
+                            # Target is "today's" custodian
+                            target_user = await database.fetch_one(users.select().where(users.c.id == custody_data.custodian_id))
+                            target_name = (target_user['first_name'].lower() + "'s home") if target_user else "unknown's home"
+                            default_location = target_name
+                        else:
+                            default_time = datetime.strptime('17:00', '%H:%M').time()
+                            default_location = 'daycare'
+
+                    await database.execute(
+                        custody.update().where(custody.c.id == existing_record['id']).values(
+                            handoff_day=derived_today_handoff,
+                            handoff_time=default_time if derived_today_handoff else None,
+                            handoff_location=default_location if derived_today_handoff else None
+                        )
+                    )
+                    handoff_day_value = derived_today_handoff
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to derive/update today's handoff from previous adjacency: {e}")
+
+        # 2) Recalculate handoff for the NEXT day based on today's new custodian
+        try:
+            next_date = custody_date + timedelta(days=1)
+            next_record = await database.fetch_one(
+                custody.select().where(
+                    (custody.c.family_id == family_id) &
+                    (custody.c.date == next_date)
+                )
+            )
+
+            if next_record:
+                next_should_be_handoff = next_record['custodian_id'] != custody_data.custodian_id
+                logger.info(f"📐 Next-day handoff recalculation: next_date={next_date} should_be_handoff={next_should_be_handoff}")
+
+                if next_should_be_handoff:
+                    # If enabling handoff and no time set, apply defaults
+                    if not next_record['handoff_time'] or not next_record['handoff_day']:
+                        weekday = next_date.weekday()  # Monday=0 .. Sunday=6
+                        if weekday >= 5:
+                            default_time = datetime.strptime('12:00', '%H:%M').time()
+                            target_user = await database.fetch_one(users.select().where(users.c.id == next_record['custodian_id']))
+                            target_name = (target_user['first_name'].lower() + "'s home") if target_user else "unknown's home"
+                            default_location = target_name
+                        else:
+                            default_time = datetime.strptime('17:00', '%H:%M').time()
+                            default_location = 'daycare'
+
+                        await database.execute(
+                            custody.update().where(custody.c.id == next_record['id']).values(
+                                handoff_day=True,
+                                handoff_time=default_time,
+                                handoff_location=default_location
+                            )
+                        )
+                    else:
+                        # Ensure flag is true even if time/location already set
+                        if not next_record['handoff_day']:
+                            await database.execute(
+                                custody.update().where(custody.c.id == next_record['id']).values(
+                                    handoff_day=True
+                                )
+                            )
+                else:
+                    # If handoff no longer applies on next day, clear it entirely
+                    if next_record['handoff_day'] or next_record['handoff_time'] or next_record['handoff_location']:
+                        await database.execute(
+                            custody.update().where(custody.c.id == next_record['id']).values(
+                                handoff_day=False,
+                                handoff_time=None,
+                                handoff_location=None
+                            )
+                        )
+
+                # Invalidate caches for next day month if it differs from current month
+                if next_date.month != custody_date.month or next_date.year != custody_date.year:
+                    next_cache_key = f"custody_opt:family:{family_id}:{next_date.year}:{next_date.month:02d}"
+                    next_cache_existed = await redis_service.exists(next_cache_key)
+                    next_cache_deleted = await redis_service.delete(next_cache_key)
+                    next_handoff_cache_key = f"handoff_only:family:{family_id}:{next_date.year}:{next_date.month:02d}"
+                    next_handoff_cache_existed = await redis_service.exists(next_handoff_cache_key)
+                    next_handoff_cache_deleted = await redis_service.delete(next_handoff_cache_key)
+                    if next_cache_existed and not next_cache_deleted:
+                        logger.warning(f"⚠️ Failed to invalidate main custody cache for next month: {next_cache_key}")
+                    if next_handoff_cache_existed and not next_handoff_cache_deleted:
+                        logger.warning(f"⚠️ Failed to invalidate handoff cache for next month: {next_handoff_cache_key}")
+        except Exception as e:
+            logger.warning(f"⚠️ Failed to recalculate/update next-day handoff status: {e}")
         
         # Invalidate cache for this month with verification
         cache_key = f"custody_opt:family:{family_id}:{custody_date.year}:{custody_date.month:02d}"

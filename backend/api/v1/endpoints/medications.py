@@ -5,6 +5,7 @@ Handles CRUD operations for medications
 
 import logging
 from typing import List, Optional
+import json
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
@@ -20,11 +21,54 @@ from schemas.medication import (
     MedicationListParams,
     MedicationListResponse,
     MedicationReminderResponse,
-    MedicationReminderListResponse
+    MedicationReminderListResponse,
+    MedicationPreset,
+    MedicationPresetListResponse
 )
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+
+def _serialize_medication_row(row: dict) -> dict:
+    """Normalize DB row values to match MedicationResponse schema types.
+
+    - family_id: str
+    - created_at/updated_at: str (ISO 8601)
+    - next_reminder preserved if present
+    """
+    if row is None:
+        return {}
+    med = dict(row)
+    # family_id may be UUID from DB driver
+    if "family_id" in med and med["family_id"] is not None and not isinstance(med["family_id"], str):
+        med["family_id"] = str(med["family_id"])
+    # created_at/updated_at should be strings for iOS compatibility
+    if "created_at" in med and med["created_at"] is not None:
+        try:
+            med["created_at"] = med["created_at"].isoformat()
+        except Exception:
+            med["created_at"] = str(med["created_at"])  # fallback
+    if "updated_at" in med and med["updated_at"] is not None:
+        try:
+            med["updated_at"] = med["updated_at"].isoformat()
+        except Exception:
+            med["updated_at"] = str(med["updated_at"])  # fallback
+    return med
+
+
+def _kv_log(d: dict) -> str:
+    """Create a JSON string of key -> {value, type} for safe logging."""
+    try:
+        serializable = {}
+        for k, v in (d or {}).items():
+            try:
+                serializable[k] = {"value": str(v), "type": type(v).__name__}
+            except Exception:
+                serializable[k] = {"value": "<unrepr>", "type": type(v).__name__}
+        return json.dumps(serializable, ensure_ascii=False)
+    except Exception:
+        return str(d)
 
 @router.get("/", response_model=MedicationListResponse)
 async def get_medications(
@@ -98,6 +142,7 @@ async def get_medications(
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 # This would be calculated based on the reminder system
                 med_dict["next_reminder"] = None  # TODO: Implement reminder calculation
+            med_dict = _serialize_medication_row(med_dict)
             response_medications.append(MedicationResponse(**med_dict))
         
         total_pages = (total + limit - 1) // limit
@@ -123,6 +168,15 @@ async def create_medication(
     Create a new medication
     """
     try:
+        # Log incoming payload (as provided by client)
+        try:
+            incoming = medication_data.dict()
+        except Exception:
+            incoming = {}
+        logger.info(
+            "create_medication(): incoming payload kv: %s",
+            _kv_log(incoming),
+        )
         # Set family_id from current user (don't require it in request)
         medication_dict = medication_data.dict()
         medication_dict["family_id"] = current_user["family_id"]
@@ -140,6 +194,12 @@ async def create_medication(
         medication_dict["created_at"] = datetime.now()
         medication_dict["updated_at"] = datetime.now()
         
+        # Log the finalized dict before DB insert
+        logger.info(
+            "create_medication(): final insert dict kv: %s",
+            _kv_log(medication_dict),
+        )
+
         # Insert into database
         query = medications.insert().values(**medication_dict)
         medication_id = await database.execute(query)
@@ -150,9 +210,10 @@ async def create_medication(
         )
         
         med_dict = dict(created_medication)
+        logger.info(med_dict)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -185,7 +246,7 @@ async def get_medication(
         med_dict = dict(medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -247,7 +308,7 @@ async def update_medication(
         med_dict = dict(updated_medication)
         if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
             med_dict["next_reminder"] = None  # TODO: Calculate next reminder
-        
+        med_dict = _serialize_medication_row(med_dict)
         return MedicationResponse(**med_dict)
         
     except HTTPException:
@@ -344,6 +405,7 @@ async def get_active_medications(
             med_dict = dict(med)
             if med_dict.get("reminder_enabled") and med_dict.get("reminder_time"):
                 med_dict["next_reminder"] = None  # TODO: Calculate next reminder
+            med_dict = _serialize_medication_row(med_dict)
             response_medications.append(MedicationResponse(**med_dict))
         
         total_pages = (total + limit - 1) // limit
@@ -403,3 +465,60 @@ async def get_medication_reminders(
     except Exception as e:
         logger.error(f"Error fetching medication reminders: {e}")
         raise HTTPException(status_code=500, detail="Internal server error") 
+
+
+@router.get("/presets", response_model=MedicationPresetListResponse)
+async def get_medication_presets(current_user: dict = Depends(get_current_user)):
+    """
+    Returns a curated list of common pediatric medications with common dosages and frequencies.
+    Also supports custom entries on the client side; this endpoint is for convenience presets only.
+    """
+    try:
+        # These presets are intentionally static and opinionated for great UX.
+        presets: list[MedicationPreset] = [
+            MedicationPreset(
+                name="Tylenol (Acetaminophen)",
+                common_dosages=["80 mg", "160 mg", "240 mg", "320 mg", "500 mg"],
+                common_frequencies=["Every 4 hours", "Every 6 hours", "Every 8 hours", "As needed"],
+                default_dosage="160 mg",
+                default_frequency="Every 6 hours",
+                aliases=["Acetaminophen", "Paracetamol"]
+            ),
+            MedicationPreset(
+                name="Motrin (Ibuprofen)",
+                common_dosages=["50 mg", "100 mg", "200 mg", "400 mg"],
+                common_frequencies=["Every 6 hours", "Every 8 hours", "As needed"],
+                default_dosage="100 mg",
+                default_frequency="Every 8 hours",
+                aliases=["Ibuprofen", "Advil"]
+            ),
+            MedicationPreset(
+                name="Zyrtec (Cetirizine)",
+                common_dosages=["2.5 mg", "5 mg", "10 mg"],
+                common_frequencies=["Once daily", "As needed"],
+                default_dosage="5 mg",
+                default_frequency="Once daily",
+                aliases=["Cetirizine"]
+            ),
+            MedicationPreset(
+                name="Benadryl (Diphenhydramine)",
+                common_dosages=["6.25 mg", "12.5 mg", "25 mg"],
+                common_frequencies=["Every 6 hours", "As needed"],
+                default_dosage="12.5 mg",
+                default_frequency="As needed",
+                aliases=["Diphenhydramine"]
+            ),
+            MedicationPreset(
+                name="Amoxicillin",
+                common_dosages=["125 mg", "250 mg", "400 mg"],
+                common_frequencies=["Twice daily", "Three times daily"],
+                default_dosage="400 mg",
+                default_frequency="Twice daily",
+                aliases=[]
+            ),
+        ]
+
+        return MedicationPresetListResponse(presets=presets)
+    except Exception as e:
+        logger.error(f"Error fetching medication presets: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")

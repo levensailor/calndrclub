@@ -60,8 +60,8 @@ class MedicationUpdate(BaseModel):
 class MedicationResponse(MedicationBase):
     id: int
     family_id: str
-    created_at: str  # Changed to string for consistency with frontend expectations
-    updated_at: str  # Changed to string for consistency with frontend expectations
+    created_at: str  # iOS expects strings
+    updated_at: str  # iOS expects strings
     next_reminder: Optional[datetime] = Field(None, description="Next reminder time")
 
     class Config:
@@ -97,3 +97,17 @@ class MedicationReminderResponse(BaseModel):
 class MedicationReminderListResponse(BaseModel):
     reminders: List[MedicationReminderResponse]
     total: int 
+
+
+# --- Presets ---
+
+class MedicationPreset(BaseModel):
+    name: str
+    common_dosages: List[str]
+    common_frequencies: List[str]
+    default_dosage: Optional[str] = None
+    default_frequency: Optional[str] = None
+    aliases: Optional[List[str]] = None
+
+class MedicationPresetListResponse(BaseModel):
+    presets: List[MedicationPreset]
