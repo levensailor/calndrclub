@@ -34,16 +34,34 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             query = users.select().where(users.c.email == form_data.username)
             user = await database.fetch_one(query)
             
-            if not user or not verify_password(form_data.password, user["password_hash"]):
+            if not user:
+                logger.warning(f"Login attempt with non-existent email: {form_data.username}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Incorrect username or password",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
+            if not verify_password(form_data.password, user["password_hash"]):
+                logger.warning(f"Login attempt with incorrect password for user: {form_data.username}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Incorrect username or password",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            
+            # Check if user account is active (email verified)
+            if user.get("status") == "pending":
+                logger.warning(f"Login attempt with unverified email: {form_data.username}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Please verify your email address before logging in",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+            
             # Update last_signed_in timestamp
             await database.execute(
-                users.update().where(users.c.id == user['id']).values(last_signed_in=datetime.now())
+                users.update().where(users.c.id == user['id']).values(last_signed_in=datetime.now(timezone.utc))
             )
     except HTTPException:
         # Re-raise HTTP exceptions (like 401) without modification
