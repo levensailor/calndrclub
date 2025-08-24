@@ -51,7 +51,14 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                 )
             
             # Check if user account is active (email verified)
-            if user.get("status") == "pending":
+            # Handle case where status field might not exist yet (before migration)
+            try:
+                user_status = getattr(user, 'status', None) or user.get('status', 'active') if hasattr(user, 'get') else 'active'
+            except (KeyError, AttributeError, TypeError):
+                # Default to active if status field doesn't exist or can't be accessed
+                user_status = 'active'
+                
+            if user_status == "pending":
                 logger.warning(f"Login attempt with unverified email: {form_data.username}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -65,8 +72,13 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             )
             
             # Create access token
+            try:
+                family_id = getattr(user, 'family_id', None) or (user.get('family_id') if hasattr(user, 'get') else None)
+            except (KeyError, AttributeError, TypeError):
+                family_id = None
+                
             access_token = create_access_token(
-                data={"sub": uuid_to_string(user["id"]), "family_id": uuid_to_string(user["family_id"])}
+                data={"sub": uuid_to_string(user["id"]), "family_id": uuid_to_string(family_id)}
             )
             return {"access_token": access_token, "token_type": "bearer"}
             
