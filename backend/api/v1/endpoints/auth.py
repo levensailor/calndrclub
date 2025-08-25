@@ -68,7 +68,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             
             # Update last_signed_in timestamp
             await database.execute(
-                users.update().where(users.c.id == user['id']).values(last_signed_in=datetime.now(timezone.utc))
+                """
+                UPDATE users 
+                SET last_signed_in = NOW() 
+                WHERE id = :user_id
+                """,
+                {"user_id": user['id']}
             )
             
             # Create access token
