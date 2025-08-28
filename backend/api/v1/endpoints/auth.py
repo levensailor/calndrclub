@@ -3,13 +3,14 @@ from fastapi.security import OAuth2PasswordRequestForm
 from datetime import datetime, timezone
 import uuid
 import asyncio
+from pydantic import BaseModel
 
 from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
 from core.logging import logger
 from db.models import users, families
 from schemas.auth import Token
-from schemas.user import UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
+from schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
 from schemas.auth import LoginAfterVerificationRequest
 from services.email_service import email_service
 from services.sms_service import sms_service
@@ -23,18 +24,24 @@ from urllib.parse import urlencode
 from core.config import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests
+from typing import Dict, Any
+
+class LoginResponse(BaseModel):
+    access_token: str
+    token_type: str
+    user: UserProfile
 
 router = APIRouter()
 
-@router.post("/token", response_model=Token)
+@router.post("/token", response_model=LoginResponse)
 async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Authenticate user and return access token."""
+    """Authenticate user and return access token and user profile."""
     try:
         async with database.transaction():
             query = users.select().where(users.c.email == form_data.username)
-            user = await database.fetch_one(query)
+            user_record = await database.fetch_one(query)
             
-            if not user:
+            if not user_record:
                 logger.warning(f"Login attempt with non-existent email: {form_data.username}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
@@ -42,21 +49,16 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                     headers={"WWW-Authenticate": "Bearer"},
                 )
             
-            if not verify_password(form_data.password, user["password_hash"]):
+            if not verify_password(form_data.password, user_record["password_hash"]):
                 logger.warning(f"Login attempt with incorrect password for user: {form_data.username}")
                 raise HTTPException(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     detail="Incorrect username or password",
                     headers={"WWW-Authenticate": "Bearer"},
                 )
-            
+
             # Check if user account is active (email verified)
-            # Handle case where status field might not exist yet (before migration)
-            try:
-                user_status = getattr(user, 'status', None) or user.get('status', 'active') if hasattr(user, 'get') else 'active'
-            except (KeyError, AttributeError, TypeError):
-                # Default to active if status field doesn't exist or can't be accessed
-                user_status = 'active'
+            user_status = getattr(user_record, 'status', 'active')
                 
             if user_status == "pending":
                 logger.warning(f"Login attempt with unverified email: {form_data.username}")
@@ -67,25 +69,34 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                 )
             
             # Update last_signed_in timestamp
-            await database.execute(
-                """
-                UPDATE users 
-                SET last_signed_in = NOW() 
-                WHERE id = :user_id
-                """,
-                {"user_id": user['id']}
-            )
+            update_query = users.update().where(users.c.id == user_record['id']).values(last_signed_in=datetime.now(timezone.utc))
+            await database.execute(update_query)
             
             # Create access token
-            try:
-                family_id = getattr(user, 'family_id', None) or (user.get('family_id') if hasattr(user, 'get') else None)
-            except (KeyError, AttributeError, TypeError):
-                family_id = None
-                
+            family_id = getattr(user_record, 'family_id', None)
             access_token = create_access_token(
-                data={"sub": uuid_to_string(user["id"]), "family_id": uuid_to_string(family_id)}
+                data={"sub": uuid_to_string(user_record["id"]), "family_id": uuid_to_string(family_id) if family_id else None}
             )
-            return {"access_token": access_token, "token_type": "bearer"}
+
+            # Convert user record to a dictionary that can be used by Pydantic
+            user_dict = dict(user_record)
+            
+            # Ensure UUIDs are converted to strings for the UserProfile schema
+            user_dict['id'] = uuid_to_string(user_dict.get('id'))
+            user_dict['family_id'] = uuid_to_string(user_dict.get('family_id'))
+
+            # Handle nullable boolean fields by providing default values if they are None
+            user_dict['enrolled'] = user_dict.get('enrolled', False)
+            user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled', False)
+            user_dict['coparent_invited'] = user_dict.get('coparent_invited', False)
+            
+            user_profile = UserProfile(**user_dict)
+            
+            return {
+                "access_token": access_token, 
+                "token_type": "bearer",
+                "user": user_profile
+            }
             
     except HTTPException:
         # Re-raise HTTP exceptions (like 401) without modification
@@ -94,6 +105,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
         logger.error(f"Login database error: {db_error}")
         logger.error(f"Error type: {type(db_error).__name__}")
         logger.error(f"Error details: {str(db_error)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Database error during login")
 
 @router.post("/register", response_model=UserRegistrationResponse)

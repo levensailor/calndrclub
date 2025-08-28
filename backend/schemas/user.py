@@ -76,6 +76,9 @@ class UserProfile(BaseSchema):
     subscription_status: Optional[str] = "Active"
     profile_photo_url: Optional[str] = None
     status: Optional[str] = "active"
+    enrolled: Optional[bool] = False
+    coparent_enrolled: Optional[bool] = False
+    coparent_invited: Optional[bool] = False
     last_signed_in: Optional[str] = None
     created_at: Optional[str] = None
     family_id: str
