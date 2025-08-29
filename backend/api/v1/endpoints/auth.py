@@ -91,6 +91,12 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled', False)
             user_dict['coparent_invited'] = user_dict.get('coparent_invited', False)
             
+            # Convert datetime objects to strings
+            if user_dict.get('last_signed_in'):
+                user_dict['last_signed_in'] = str(user_dict['last_signed_in'])
+            if user_dict.get('created_at'):
+                user_dict['created_at'] = str(user_dict['created_at'])
+
             user_profile = UserProfile(**user_dict)
             
             return {
