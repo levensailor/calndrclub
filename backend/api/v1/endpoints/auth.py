@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import uuid
 import asyncio
 from pydantic import BaseModel
+from sqlalchemy import func
 
 from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
@@ -69,7 +70,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                 )
             
             # Update last_signed_in timestamp
-            update_query = users.update().where(users.c.id == user_record['id']).values(last_signed_in=datetime.now(timezone.utc))
+            update_query = users.update().where(users.c.id == user_record['id']).values(last_signed_in=func.now())
             await database.execute(update_query)
             
             # Create access token
@@ -86,10 +87,16 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             user_dict['family_id'] = uuid_to_string(user_dict.get('family_id'))
 
             # Handle nullable boolean fields by providing default values if they are None
-            user_dict['enrolled'] = user_dict.get('enrolled', False)
-            user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled', False)
-            user_dict['coparent_invited'] = user_dict.get('coparent_invited', False)
+            user_dict['enrolled'] = user_dict.get('enrolled') or False
+            user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled') or False
+            user_dict['coparent_invited'] = user_dict.get('coparent_invited') or False
             
+            # Convert datetime objects to strings
+            if user_dict.get('last_signed_in'):
+                user_dict['last_signed_in'] = str(user_dict['last_signed_in'])
+            if user_dict.get('created_at'):
+                user_dict['created_at'] = str(user_dict['created_at'])
+
             user_profile = UserProfile(**user_dict)
             
             return {
