@@ -87,9 +87,9 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
             user_dict['family_id'] = uuid_to_string(user_dict.get('family_id'))
 
             # Handle nullable boolean fields by providing default values if they are None
-            user_dict['enrolled'] = user_dict.get('enrolled', False)
-            user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled', False)
-            user_dict['coparent_invited'] = user_dict.get('coparent_invited', False)
+            user_dict['enrolled'] = user_dict.get('enrolled') or False
+            user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled') or False
+            user_dict['coparent_invited'] = user_dict.get('coparent_invited') or False
             
             # Convert datetime objects to strings
             if user_dict.get('last_signed_in'):

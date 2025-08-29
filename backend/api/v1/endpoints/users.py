@@ -32,24 +32,26 @@ async def get_user_profile(current_user = Depends(get_current_user)):
         # Get user preferences
         prefs_query = user_preferences.select().where(user_preferences.c.user_id == current_user['id'])
         user_prefs = await database.fetch_one(prefs_query)
+        
+        user_dict = dict(user_record)
             
         return UserProfile(
-            id=uuid_to_string(user_record['id']),
-            first_name=user_record['first_name'],
-            last_name=user_record['last_name'],
-            email=user_record['email'],
-            phone_number=user_record['phone_number'],
-            subscription_type=user_record['subscription_type'] or "Free",
-            subscription_status=user_record['subscription_status'] or "Active",
-            profile_photo_url=user_record['profile_photo_url'],
-            status=user_record['status'] or "active",
-            enrolled=user_record.get('enrolled', False),
-            coparent_enrolled=user_record.get('coparent_enrolled', False),
-            coparent_invited=user_record.get('coparent_invited', False),
-            last_signed_in=str(user_record['last_signed_in']) if user_record['last_signed_in'] else None,
+            id=uuid_to_string(user_dict.get('id')),
+            first_name=user_dict.get('first_name'),
+            last_name=user_dict.get('last_name'),
+            email=user_dict.get('email'),
+            phone_number=user_dict.get('phone_number'),
+            subscription_type=user_dict.get('subscription_type') or "Free",
+            subscription_status=user_dict.get('subscription_status') or "Active",
+            profile_photo_url=user_dict.get('profile_photo_url'),
+            status=user_dict.get('status') or "active",
+            enrolled=user_dict.get('enrolled') or False,
+            coparent_enrolled=user_dict.get('coparent_enrolled') or False,
+            coparent_invited=user_dict.get('coparent_invited') or False,
+            last_signed_in=str(user_dict.get('last_signed_in')) if user_dict.get('last_signed_in') else None,
             selected_theme_id=user_prefs['selected_theme_id'] if user_prefs else None,
-            created_at=str(user_record['created_at']) if user_record['created_at'] else None,
-            family_id=uuid_to_string(user_record['family_id'])
+            created_at=str(user_dict.get('created_at')) if user_dict.get('created_at') else None,
+            family_id=uuid_to_string(user_dict.get('family_id'))
         )
     except Exception as e:
         logger.error(f"Error fetching user profile: {e}")
