@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 import uuid
 import asyncio
 from pydantic import BaseModel
+from sqlalchemy import func
 
 from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
@@ -69,7 +70,7 @@ async def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(
                 )
             
             # Update last_signed_in timestamp
-            update_query = users.update().where(users.c.id == user_record['id']).values(last_signed_in=datetime.now(timezone.utc))
+            update_query = users.update().where(users.c.id == user_record['id']).values(last_signed_in=func.now())
             await database.execute(update_query)
             
             # Create access token
