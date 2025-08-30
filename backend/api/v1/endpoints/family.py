@@ -82,26 +82,43 @@ async def get_family_custodians(current_user = Depends(get_current_user)):
         
         logger.info(f"Found {len(family_members)} family members")
         
-        if len(family_members) < 2:
-            logger.warning(f"Not enough family members found: {len(family_members)}")
-            raise HTTPException(status_code=404, detail="Family must have at least two members to determine custodians")
+        if len(family_members) < 1:
+            logger.warning(f"No family members found")
+            raise HTTPException(status_code=404, detail="No family members found")
             
         custodian_one = family_members[0]
-        custodian_two = family_members[1]
         
-        logger.info(f"Custodian 1: {custodian_one['first_name']} (ID: {custodian_one['id']})")
-        logger.info(f"Custodian 2: {custodian_two['first_name']} (ID: {custodian_two['id']})")
-        
-        result = [
-            Custodian(
-                id=uuid_to_string(custodian_one['id']),
-                first_name=custodian_one['first_name']
-            ),
-            Custodian(
-                id=uuid_to_string(custodian_two['id']),
-                first_name=custodian_two['first_name']
-            )
-        ]
+        if len(family_members) >= 2:
+            custodian_two = family_members[1]
+            logger.info(f"Custodian 1: {custodian_one['first_name']} (ID: {custodian_one['id']})")
+            logger.info(f"Custodian 2: {custodian_two['first_name']} (ID: {custodian_two['id']})")
+            
+            result = [
+                Custodian(
+                    id=uuid_to_string(custodian_one['id']),
+                    first_name=custodian_one['first_name']
+                ),
+                Custodian(
+                    id=uuid_to_string(custodian_two['id']),
+                    first_name=custodian_two['first_name']
+                )
+            ]
+        else:
+            # Only one family member exists, return it as the first custodian
+            # and a placeholder for the second custodian
+            logger.info(f"Only one family member found: {custodian_one['first_name']} (ID: {custodian_one['id']})")
+            logger.info(f"Creating placeholder for second custodian")
+            
+            result = [
+                Custodian(
+                    id=uuid_to_string(custodian_one['id']),
+                    first_name=custodian_one['first_name']
+                ),
+                Custodian(
+                    id="placeholder",
+                    first_name="Parent 2"
+                )
+            ]
         
         logger.info(f"Returning custodians: {result}")
         return result
