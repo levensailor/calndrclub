@@ -368,3 +368,20 @@ medications = sqlalchemy.Table(
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
     sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
 )
+
+# Enrollment codes table
+enrollment_codes = sqlalchemy.Table(
+    "enrollment_codes",
+    metadata,
+    sqlalchemy.Column("id", sqlalchemy.Integer, primary_key=True, autoincrement=True),
+    sqlalchemy.Column("family_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("families.id", ondelete="CASCADE"), nullable=False),
+    sqlalchemy.Column("code", sqlalchemy.String(6), unique=True, nullable=False),
+    sqlalchemy.Column("created_by_user_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("users.id"), nullable=False),
+    sqlalchemy.Column("coparent_first_name", sqlalchemy.String(100), nullable=True),
+    sqlalchemy.Column("coparent_last_name", sqlalchemy.String(100), nullable=True),
+    sqlalchemy.Column("coparent_email", sqlalchemy.String(255), nullable=True),
+    sqlalchemy.Column("coparent_phone", sqlalchemy.String(20), nullable=True),
+    sqlalchemy.Column("invitation_sent", sqlalchemy.Boolean, default=False, nullable=False),
+    sqlalchemy.Column("invitation_sent_at", sqlalchemy.DateTime, nullable=True),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=False, default=datetime.now),
+)
