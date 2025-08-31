@@ -2,7 +2,7 @@ from typing import Optional
 from datetime import datetime
 from pydantic import BaseModel, Field
 
-from backend.schemas.base import BaseSchema
+from schemas.base import BaseSchema
 
 class EnrollmentCodeCreate(BaseModel):
     """Schema for creating an enrollment code."""
