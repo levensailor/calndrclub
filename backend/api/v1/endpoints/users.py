@@ -13,7 +13,7 @@ from core.config import settings
 from db.models import users, user_preferences
 from schemas.user import (
     UserProfile, UserUpdate, PasswordUpdate, UserPreferenceUpdate, 
-    LocationUpdateRequest, FamilyMember, FamilyMemberEmail
+    LocationUpdateRequest, FamilyMember, FamilyMemberEmail, EnrollmentStatusUpdate
 )
 
 router = APIRouter()
@@ -95,6 +95,24 @@ async def update_user_profile(user_update: UserUpdate, current_user = Depends(ge
         logger.error(f"Error updating user profile: {e}")
         logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(status_code=500, detail="Failed to update user profile")
+
+@router.put("/enrollment-status")
+async def update_enrollment_status(status_update: EnrollmentStatusUpdate, current_user = Depends(get_current_user)):
+    """
+    Update the user's enrollment status.
+    """
+    try:
+        # Update the enrolled status in the database
+        await database.execute(
+            users.update().where(users.c.id == current_user['id']).values(enrolled=status_update.enrolled)
+        )
+        logger.info(f"Updated enrollment status for user {current_user['id']} to {status_update.enrolled}")
+        
+        return {"status": "success", "message": "Enrollment status updated successfully"}
+    except Exception as e:
+        logger.error(f"Error updating enrollment status: {e}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail="Failed to update enrollment status")
 
 @router.put("/me/password")
 async def update_user_password(password_update: PasswordUpdate, current_user = Depends(get_current_user)):
