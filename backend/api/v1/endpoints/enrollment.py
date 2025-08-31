@@ -40,7 +40,7 @@ async def create_enrollment_code(
     """Create a new enrollment code for a family."""
     try:
         # Get the user's family ID
-        family_id = current_user['family_id')
+        family_id = current_user['family_id']
         if not family_id:
             logger.error(f"User {current_user['id']} has no family_id")
             raise HTTPException(
