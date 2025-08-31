@@ -43,3 +43,4 @@ class EnrollmentInvite(BaseModel):
     coparent_last_name: str
     coparent_email: str
     coparent_phone: Optional[str] = None
+    
