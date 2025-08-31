@@ -115,3 +115,7 @@ class FamilyMemberEmail(BaseSchema):
     id: str
     first_name: str
     email: str
+
+class EnrollmentStatusUpdate(BaseSchema):
+    """Schema for updating user enrollment status."""
+    enrolled: bool
