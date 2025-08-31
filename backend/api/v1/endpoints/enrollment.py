@@ -68,7 +68,13 @@ async def create_enrollment_code(
                 "family_id": family_id,
                 "code": code,
                 "created_by_user_id": current_user["id"],
-                "created_at": datetime.now()
+                "created_at": datetime.now(),
+                "invitation_sent": False,
+                "invitation_sent_at": None,
+                "coparent_first_name": None,
+                "coparent_last_name": None,
+                "coparent_email": None,
+                "coparent_phone": None
             }
             
             # Add co-parent information if provided
