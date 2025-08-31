@@ -9,17 +9,17 @@ from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy import select, insert, update
 from sqlalchemy.sql import and_
 
-from backend.core.database import get_db
-from backend.core.security import get_current_user
-from backend.db.models import enrollment_codes, users, families
-from backend.schemas.enrollment import (
+from core.database import get_db
+from core.security import get_current_user
+from db.models import enrollment_codes, users, families
+from schemas.enrollment import (
     EnrollmentCodeCreate,
     EnrollmentCodeResponse,
     EnrollmentCodeValidate,
     EnrollmentCode,
     EnrollmentInvite
 )
-from backend.core.email import send_enrollment_invitation
+from core.email import send_enrollment_invitation
 
 # Configure logging
 logger = logging.getLogger(__name__)
