@@ -2,6 +2,8 @@
 
 A scalable, containerized FastAPI backend for the Calndr family calendar application, deployed on AWS with full CI/CD automation.
 
+> **Important**: This repository contains ONLY the backend code for the Calndr application. The frontend code is maintained in the main [calndr](https://github.com/levensailor/calndr) repository. Changes to the backend should be made in the main repository and will be automatically synced to this repository.
+
 ## 🚀 Architecture Overview
 
 - **Application**: FastAPI with Python 3.11
@@ -20,6 +22,17 @@ A scalable, containerized FastAPI backend for the Calndr family calendar applica
 - **Terraform** >= 1.0 for infrastructure management
 - **Git** for version control
 - **GitHub** repository with Actions enabled
+
+## 🔄 Repository Sync Process
+
+This repository is automatically synchronized with the backend code from the main [calndr](https://github.com/levensailor/calndr) repository. The sync process works as follows:
+
+1. Changes to backend code are made in the main `calndr` repository
+2. After each commit to the main repository, a post-commit hook triggers the sync script
+3. The sync script copies only the backend code to this repository
+4. Changes are automatically committed and pushed to this repository
+
+**Important**: Do not make direct changes to this repository. All changes should be made in the main `calndr` repository.
 
 ## 🏗️ Infrastructure Setup
 
