@@ -1,16 +1,17 @@
 import logging
 import random
 import string
+import traceback
 from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.ext.asyncio import AsyncConnection
 from sqlalchemy import select, insert, update
 from sqlalchemy.sql import and_
 
-from core.database import get_db
+from core.database import database
 from core.security import get_current_user
+from core.logging import logger
 from db.models import enrollment_codes, users, families
 from schemas.enrollment import (
     EnrollmentCodeCreate,
@@ -21,8 +22,6 @@ from schemas.enrollment import (
 )
 from core.email import send_enrollment_invitation
 
-# Configure logging
-logger = logging.getLogger(__name__)
 router = APIRouter()
 
 def generate_enrollment_code(length=6):
@@ -36,7 +35,6 @@ def generate_enrollment_code(length=6):
 @router.post("/create-code", response_model=EnrollmentCodeResponse)
 async def create_enrollment_code(
     data: Optional[EnrollmentCodeCreate] = None,
-    db: AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Create a new enrollment code for a family."""
@@ -57,15 +55,13 @@ async def create_enrollment_code(
         try:
             # Check if code already exists
             query = select([enrollment_codes.c.id]).where(enrollment_codes.c.code == code)
-            result = await db.execute(query)
-            existing_code = await result.first()
+            existing_code = await database.fetch_one(query)
             
             # If code exists, generate a new one
             while existing_code:
                 code = generate_enrollment_code()
                 query = select([enrollment_codes.c.id]).where(enrollment_codes.c.code == code)
-                result = await db.execute(query)
-                existing_code = await result.first()
+                existing_code = await database.fetch_one(query)
             
             # Create the enrollment code record
             values = {
@@ -88,8 +84,7 @@ async def create_enrollment_code(
             
             # Insert the record
             query = insert(enrollment_codes).values(**values)
-            await db.execute(query)
-            await db.commit()
+            await database.execute(query)
         except Exception as table_error:
             # If the table doesn't exist or there's another error, log it but continue
             # We'll still return a valid code to the frontend
@@ -99,8 +94,7 @@ async def create_enrollment_code(
         # Update the user's coparent_invited flag
         try:
             query = update(users).where(users.c.id == current_user["id"]).values(coparent_invited=True)
-            await db.execute(query)
-            await db.commit()
+            await database.execute(query)
         except Exception as user_update_error:
             logger.warning(f"Error updating user coparent_invited flag: {str(user_update_error)}")
         
@@ -114,8 +108,8 @@ async def create_enrollment_code(
         }
         
     except Exception as e:
-        await db.rollback()
         logger.error(f"Error creating enrollment code: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating enrollment code: {str(e)}"
@@ -124,7 +118,6 @@ async def create_enrollment_code(
 @router.post("/validate-code", response_model=EnrollmentCodeResponse)
 async def validate_enrollment_code(
     data: EnrollmentCodeValidate,
-    db: AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Validate an enrollment code."""
@@ -137,8 +130,7 @@ async def validate_enrollment_code(
                 enrollment_codes.c.created_by_user_id
             ]).where(enrollment_codes.c.code == data.code)
             
-            result = await db.execute(query)
-            code_record = await result.first()
+            code_record = await database.fetch_one(query)
             
             if not code_record:
                 # If the table exists but no code is found, return an error
@@ -177,18 +169,18 @@ async def validate_enrollment_code(
                 family_id=family_id,
                 enrolled=True
             )
-            await db.execute(query)
+            await database.execute(query)
             
             # Try to update the original user's coparent_enrolled flag
             try:
                 query = update(users).where(users.c.id == created_by_user_id).values(
                     coparent_enrolled=True
                 )
-                await db.execute(query)
+                await database.execute(query)
             except Exception as creator_update_error:
                 logger.warning(f"Error updating creator's coparent_enrolled flag: {str(creator_update_error)}")
             
-            await db.commit()
+            # No need for explicit commit with databases library
         except Exception as user_update_error:
             logger.warning(f"Error updating user enrollment status: {str(user_update_error)}")
             # Try to continue anyway
@@ -202,17 +194,16 @@ async def validate_enrollment_code(
         }
         
     except Exception as e:
-        await db.rollback()
         logger.error(f"Error validating enrollment code: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error validating enrollment code: {str(e)}"
         )
 
 @router.post("/send-invitation", response_model=EnrollmentCodeResponse)
-async def send_enrollment_invitation(
+async def send_enrollment_invitation_endpoint(
     data: EnrollmentInvite,
-    db: AsyncConnection = Depends(get_db),
     current_user: dict = Depends(get_current_user)
 ):
     """Send an enrollment invitation to a co-parent."""
@@ -228,8 +219,7 @@ async def send_enrollment_invitation(
             )
         )
         
-        result = await db.execute(query)
-        code_record = await result.first()
+        code_record = await database.fetch_one(query)
         
         if not code_record:
             return {
@@ -246,8 +236,7 @@ async def send_enrollment_invitation(
             invitation_sent=True,
             invitation_sent_at=datetime.now()
         )
-        await db.execute(query)
-        await db.commit()
+        await database.execute(query)
         
         # Send the email invitation
         # This would typically call an email service
@@ -268,8 +257,8 @@ async def send_enrollment_invitation(
         }
         
     except Exception as e:
-        await db.rollback()
         logger.error(f"Error sending enrollment invitation: {str(e)}")
+        logger.error(f"Traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error sending enrollment invitation: {str(e)}"
