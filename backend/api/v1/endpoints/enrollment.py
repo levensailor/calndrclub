@@ -40,7 +40,7 @@ async def create_enrollment_code(
     """Create a new enrollment code for a family."""
     try:
         # Get the user's family ID
-        family_id = current_user.get("family_id")
+        family_id = current_user['family_id']
         if not family_id:
             logger.error(f"User {current_user['id']} has no family_id")
             raise HTTPException(
@@ -54,13 +54,13 @@ async def create_enrollment_code(
         # Check if the enrollment_codes table exists
         try:
             # Check if code already exists
-            query = select([enrollment_codes.c.id]).where(enrollment_codes.c.code == code)
+            query = enrollment_codes.select().where(enrollment_codes.c.code == code)
             existing_code = await database.fetch_one(query)
             
             # If code exists, generate a new one
             while existing_code:
                 code = generate_enrollment_code()
-                query = select([enrollment_codes.c.id]).where(enrollment_codes.c.code == code)
+                query = enrollment_codes.select().where(enrollment_codes.c.code == code)
                 existing_code = await database.fetch_one(query)
             
             # Create the enrollment code record
@@ -124,11 +124,7 @@ async def validate_enrollment_code(
     try:
         # Try to find the enrollment code in the database
         try:
-            query = select([
-                enrollment_codes.c.id,
-                enrollment_codes.c.family_id,
-                enrollment_codes.c.created_by_user_id
-            ]).where(enrollment_codes.c.code == data.code)
+            query = enrollment_codes.select().where(enrollment_codes.c.code == data.code)
             
             code_record = await database.fetch_one(query)
             
@@ -209,10 +205,7 @@ async def send_enrollment_invitation_endpoint(
     """Send an enrollment invitation to a co-parent."""
     try:
         # Find the enrollment code
-        query = select([
-            enrollment_codes.c.id,
-            enrollment_codes.c.family_id
-        ]).where(
+        query = enrollment_codes.select().where(
             and_(
                 enrollment_codes.c.code == data.code,
                 enrollment_codes.c.created_by_user_id == current_user["id"]
