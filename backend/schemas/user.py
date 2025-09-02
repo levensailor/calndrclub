@@ -25,6 +25,14 @@ class UserUpdate(BaseSchema):
     email: Optional[EmailStr] = None
     phone_number: Optional[str] = None
 
+class UserProfileUpdate(BaseSchema):
+    """Schema for updating user profile data."""
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    phone_number: Optional[str] = None
+    bio: Optional[str] = None
+    enrolled: Optional[bool] = None
+
 class UserResponse(UserBase):
     """Schema for user response data."""
     id: str
@@ -53,7 +61,7 @@ class UserRegistrationWithFamily(BaseSchema):
     password: str
     phone_number: Optional[str] = None
     enrollment_code: str
-    family_id: Optional[int] = None
+    family_id: Optional[str] = None  # Changed from int to str to match UUID format
 
 class UserRegistrationResponse(BaseSchema):
     """Schema for user registration response."""
@@ -83,6 +91,12 @@ class UserProfile(BaseSchema):
     created_at: Optional[str] = None
     family_id: str
     selected_theme_id: Optional[uuid.UUID] = None
+
+class UserPreferences(BaseSchema):
+    """Schema for user preferences."""
+    selected_theme_id: Optional[uuid.UUID] = None
+    theme: Optional[str] = None
+    notification_preferences: Optional[dict] = None
 
 class UserPreferenceUpdate(BaseSchema):
     """Schema for updating user preferences."""
