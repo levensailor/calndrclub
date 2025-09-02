@@ -125,7 +125,7 @@ async def get_current_user_profile(current_user = Depends(get_current_user)):
         "coparent_enrolled": user_data.get('coparent_enrolled', False),
         "coparent_invited": user_data.get('coparent_invited', False),
         "bio": profile_data['bio'] if profile_data else "",
-        "profile_photo_url": profile_data['profile_photo_url'] if profile_data else "",
+        "profile_photo_url": user_data['profile_photo_url'] or (profile_data['profile_photo_url'] if profile_data else ""),
         "theme": preferences_data['theme'] if preferences_data else "default",
         "notification_preferences": preferences_data['notification_preferences'] if preferences_data else {"email": True, "push": True, "sms": False},
         "created_at": user_data['created_at'],
@@ -428,7 +428,14 @@ async def upload_profile_photo(
         # Generate the URL
         photo_url = f"https://{settings.S3_BUCKET_NAME}.s3.amazonaws.com/profile-photos/{filename}"
         
-        # Update the user's profile
+        # Update the user's profile in the users table
+        await database.execute(
+            users.update()
+            .where(users.c.id == current_user['id'])
+            .values(profile_photo_url=photo_url, updated_at=datetime.now())
+        )
+        
+        # Also update user_profiles if it exists
         profile = await database.fetch_one(
             user_profiles.select().where(user_profiles.c.user_id == current_user['id'])
         )

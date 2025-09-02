@@ -28,6 +28,19 @@ users = sqlalchemy.Table(
     sqlalchemy.Column("coparent_invited", sqlalchemy.Boolean, nullable=True, default=False),
     sqlalchemy.Column("last_signed_in", sqlalchemy.DateTime, nullable=True, default=datetime.now),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
+    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
+)
+
+# User profiles table
+user_profiles = sqlalchemy.Table(
+    "user_profiles",
+    metadata,
+    sqlalchemy.Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
+    sqlalchemy.Column("user_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True),
+    sqlalchemy.Column("bio", sqlalchemy.Text, nullable=True),
+    sqlalchemy.Column("profile_photo_url", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
+    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
 )
 
 # Families table
@@ -38,6 +51,8 @@ families = sqlalchemy.Table(
     sqlalchemy.Column("name", sqlalchemy.String, nullable=False),
     sqlalchemy.Column("daycare_sync_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("daycare_calendar_syncs.id", ondelete="SET NULL"), nullable=True),
     sqlalchemy.Column("school_sync_id", sqlalchemy.Integer, sqlalchemy.ForeignKey("school_calendar_syncs.id", ondelete="SET NULL"), nullable=True),
+    sqlalchemy.Column("created_at", sqlalchemy.DateTime, nullable=True, default=datetime.now),
+    sqlalchemy.Column("updated_at", sqlalchemy.DateTime, nullable=True, default=datetime.now, onupdate=datetime.now),
 )
 
 # Events table
@@ -183,6 +198,8 @@ user_preferences = sqlalchemy.Table(
     sqlalchemy.Column("id", UUID(as_uuid=True), primary_key=True, default=uuid.uuid4),
     sqlalchemy.Column("user_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, unique=True),
     sqlalchemy.Column("selected_theme_id", UUID(as_uuid=True), sqlalchemy.ForeignKey("themes.id")),
+    sqlalchemy.Column("theme", sqlalchemy.String, nullable=True),
+    sqlalchemy.Column("notification_preferences", sqlalchemy.JSON, nullable=True),
     sqlalchemy.Column("created_at", sqlalchemy.DateTime, default=datetime.utcnow, nullable=True),
     sqlalchemy.Column("updated_at", sqlalchemy.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=True),
 )
