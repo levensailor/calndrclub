@@ -18,7 +18,8 @@ from schemas.enrollment import (
     EnrollmentCodeResponse,
     EnrollmentCodeValidate,
     EnrollmentCode,
-    EnrollmentInvite
+    EnrollmentInvite,
+    EnrollmentEmailRequest
 )
 from core.email import send_enrollment_invitation
 
@@ -102,20 +103,19 @@ async def create_enrollment_code(
             query = update(users).where(users.c.id == current_user["id"]).values(coparent_invited=True)
             await database.execute(query)
         except Exception as user_update_error:
-            logger.warning(f"Error updating user coparent_invited flag: {str(user_update_error)}")
+            logger.warning(f"Error updating user's coparent_invited flag: {str(user_update_error)}")
         
+        # Return the code to the frontend
         logger.info(f"Created enrollment code {code} for family {family_id}")
-        
-        return {
-            "success": True,
-            "message": "Enrollment code created successfully",
-            "enrollmentCode": code,
-            "familyId": str(family_id)
-        }
-        
+        return EnrollmentCodeResponse(
+            success=True,
+            message="Enrollment code created successfully",
+            enrollmentCode=code,
+            familyId=family_id
+        )
     except Exception as e:
         logger.error(f"Error creating enrollment code: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error creating enrollment code: {str(e)}"
@@ -128,137 +128,163 @@ async def validate_enrollment_code(
 ):
     """Validate an enrollment code."""
     try:
-        # Try to find the enrollment code in the database
-        try:
-            query = enrollment_codes.select().where(enrollment_codes.c.code == data.code)
-            
-            code_record = await database.fetch_one(query)
-            
-            if not code_record:
-                # If the table exists but no code is found, return an error
-                return {
-                    "success": False,
-                    "message": "Invalid enrollment code"
-                }
-            
-            # Get the family information
-            family_id = code_record["family_id"]
-            created_by_user_id = code_record["created_by_user_id"]
-        except Exception as table_error:
-            # If the table doesn't exist or there's another error, log it
-            logger.warning(f"Error accessing enrollment_codes table: {str(table_error)}")
-            logger.warning("Continuing with code validation using hardcoded test codes")
-            
-            # For testing purposes, accept some hardcoded test codes
-            # In production, you would want to remove this
-            test_codes = {
-                "TEST123": {"family_id": current_user.get("family_id")},
-                "DEMO456": {"family_id": current_user.get("family_id")}
-            }
-            
-            if data.code in test_codes:
-                family_id = test_codes[data.code]["family_id"]
-                created_by_user_id = current_user["id"]  # Use current user as creator for test codes
-            else:
-                return {
-                    "success": False,
-                    "message": "Invalid enrollment code"
-                }
+        # Check if the code exists
+        query = enrollment_codes.select().where(enrollment_codes.c.code == data.code)
+        code_record = await database.fetch_one(query)
         
-        # Update the user's family_id and enrollment status
-        try:
-            query = update(users).where(users.c.id == current_user["id"]).values(
-                family_id=family_id,
-                enrolled=True
+        if not code_record:
+            return EnrollmentCodeResponse(
+                success=False,
+                message="Invalid enrollment code"
             )
-            await database.execute(query)
-            
-            # Try to update the original user's coparent_enrolled flag
-            try:
-                query = update(users).where(users.c.id == created_by_user_id).values(
-                    coparent_enrolled=True
-                )
-                await database.execute(query)
-            except Exception as creator_update_error:
-                logger.warning(f"Error updating creator's coparent_enrolled flag: {str(creator_update_error)}")
-            
-            # No need for explicit commit with databases library
-        except Exception as user_update_error:
-            logger.warning(f"Error updating user enrollment status: {str(user_update_error)}")
-            # Try to continue anyway
         
-        logger.info(f"User {current_user['id']} validated enrollment code {data.code} for family {family_id}")
-        
-        return {
-            "success": True,
-            "message": "Enrollment code validated successfully",
-            "familyId": str(family_id)
-        }
-        
+        # Return the family ID associated with the code
+        return EnrollmentCodeResponse(
+            success=True,
+            message="Valid enrollment code",
+            enrollmentCode=data.code,
+            familyId=code_record["family_id"]
+        )
     except Exception as e:
         logger.error(f"Error validating enrollment code: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error validating enrollment code: {str(e)}"
         )
 
-@router.post("/send-invitation", response_model=EnrollmentCodeResponse)
+@router.post("/invite")
 async def send_enrollment_invitation_endpoint(
     data: EnrollmentInvite,
     current_user: dict = Depends(get_current_user)
 ):
-    """Send an enrollment invitation to a co-parent."""
+    """Send an enrollment invitation email."""
     try:
-        # Find the enrollment code
-        query = enrollment_codes.select().where(
-            and_(
-                enrollment_codes.c.code == data.code,
-                enrollment_codes.c.created_by_user_id == current_user["id"]
-            )
-        )
-        
+        # Check if the code exists
+        query = enrollment_codes.select().where(enrollment_codes.c.code == data.code)
         code_record = await database.fetch_one(query)
         
         if not code_record:
-            return {
-                "success": False,
-                "message": "Invalid enrollment code or not authorized"
-            }
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid enrollment code"
+            )
         
-        # Update the enrollment code with co-parent information
-        query = update(enrollment_codes).where(enrollment_codes.c.id == code_record["id"]).values(
-            coparent_first_name=data.coparent_first_name,
-            coparent_last_name=data.coparent_last_name,
-            coparent_email=data.coparent_email,
-            coparent_phone=data.coparent_phone,
-            invitation_sent=True,
-            invitation_sent_at=datetime.now()
+        # Get the user's name
+        user_query = users.select().where(users.c.id == current_user["id"])
+        user_record = await database.fetch_one(user_query)
+        
+        if not user_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Send the invitation email
+        sender_name = f"{user_record['first_name']} {user_record['last_name']}"
+        success = await send_enrollment_invitation(
+            sender_name=sender_name,
+            recipient_name=f"{data.coparent_first_name} {data.coparent_last_name}",
+            recipient_email=data.coparent_email,
+            enrollment_code=data.code
         )
-        await database.execute(query)
         
-        # Send the email invitation
-        # This would typically call an email service
-        # For now, we'll just log it
-        logger.info(f"Would send enrollment invitation to {data.coparent_email} with code {data.code}")
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send enrollment invitation"
+            )
         
-        # In a real implementation, you would call something like:
-        # send_enrollment_invitation(
-        #     to_email=data.coparent_email,
-        #     to_name=f"{data.coparent_first_name} {data.coparent_last_name}",
-        #     from_name=f"{current_user['first_name']} {current_user['last_name']}",
-        #     code=data.code
-        # )
+        # Update the enrollment code record with co-parent information and invitation status
+        now = datetime.now()
+        update_query = (
+            update(enrollment_codes)
+            .where(enrollment_codes.c.code == data.code)
+            .values(
+                coparent_first_name=data.coparent_first_name,
+                coparent_last_name=data.coparent_last_name,
+                coparent_email=data.coparent_email,
+                coparent_phone=data.coparent_phone,
+                invitation_sent=True,
+                invitation_sent_at=now
+            )
+        )
+        await database.execute(update_query)
         
-        return {
-            "success": True,
-            "message": "Enrollment invitation sent successfully"
-        }
-        
+        return {"success": True, "message": "Enrollment invitation sent successfully"}
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
     except Exception as e:
         logger.error(f"Error sending enrollment invitation: {str(e)}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error sending enrollment invitation: {str(e)}"
+        )
+
+@router.post("/send-code-email")
+async def send_code_email(
+    data: EnrollmentEmailRequest,
+    current_user: dict = Depends(get_current_user)
+):
+    """Send an email with the enrollment code."""
+    try:
+        # Check if the code exists
+        query = enrollment_codes.select().where(enrollment_codes.c.code == data.code)
+        code_record = await database.fetch_one(query)
+        
+        if not code_record:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid enrollment code"
+            )
+        
+        # Get the user's name
+        user_query = users.select().where(users.c.id == current_user["id"])
+        user_record = await database.fetch_one(user_query)
+        
+        if not user_record:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="User not found"
+            )
+        
+        # Send the invitation email
+        sender_name = f"{user_record['first_name']} {user_record['last_name']}"
+        success = await send_enrollment_invitation(
+            sender_name=sender_name,
+            recipient_name=data.name,
+            recipient_email=data.email,
+            enrollment_code=data.code
+        )
+        
+        if not success:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to send enrollment code email"
+            )
+        
+        # Update the enrollment code record with invitation status
+        now = datetime.now()
+        update_query = (
+            update(enrollment_codes)
+            .where(enrollment_codes.c.code == data.code)
+            .values(
+                invitation_sent=True,
+                invitation_sent_at=now
+            )
+        )
+        await database.execute(update_query)
+        
+        return {"success": True, "message": "Enrollment code email sent successfully"}
+    except HTTPException:
+        # Re-raise HTTP exceptions
+        raise
+    except Exception as e:
+        logger.error(f"Error sending enrollment code email: {str(e)}")
+        logger.error(f"Full traceback: {traceback.format_exc()}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error sending enrollment code email: {str(e)}"
         )
