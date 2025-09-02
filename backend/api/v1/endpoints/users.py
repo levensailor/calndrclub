@@ -9,7 +9,7 @@ import traceback
 import logging
 import uuid
 from core.config import settings
-from core.security import get_current_user, hash_password, verify_password
+from core.security import get_current_user, get_password_hash, verify_password
 from core.database import database
 from db.models import users, user_preferences, user_profiles, families
 from schemas.user import UserCreate, UserUpdate, UserResponse, UserProfile, UserProfileUpdate, UserPreferences, EnrollmentStatusUpdate
@@ -40,7 +40,7 @@ async def create_user(user: UserCreate):
     )
 
     # Hash the password
-    hashed_password = hash_password(user.password)
+    hashed_password = get_password_hash(user.password)
 
     # Create the user
     user_id = str(uuid.uuid4())
@@ -227,7 +227,7 @@ async def update_password(
         raise HTTPException(status_code=403, detail="Invalid current password")
     
     # Hash new password
-    new_password_hash = hash_password(new_password)
+    new_password_hash = get_password_hash(new_password)
     
     # Update password
     await database.execute(
