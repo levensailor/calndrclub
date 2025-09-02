@@ -9,7 +9,7 @@ import traceback
 import logging
 import uuid
 from core.config import settings
-from core.auth import get_current_user, hash_password, verify_password
+from core.security import get_current_user, hash_password, verify_password
 from core.database import database
 from db.models import users, user_preferences, user_profiles, families
 from schemas.user import UserCreate, UserUpdate, UserResponse, UserProfile, UserProfileUpdate, UserPreferences, EnrollmentStatusUpdate
