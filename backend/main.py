@@ -14,7 +14,7 @@ from core.config import settings
 from core.database import database
 from core.middleware import add_no_cache_headers, bot_filter_middleware, request_validation_middleware, request_logging_middleware
 from services.redis_service import redis_service
-from backend.api.v1.api import api_router
+from api.v1.api import api_router
 
 # Get logger
 logger = logging.getLogger(__name__)
