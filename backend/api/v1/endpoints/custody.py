@@ -4,14 +4,14 @@ from datetime import date, datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 import traceback
 
-from backend.core.database import database
-from backend.core.security import get_current_user, uuid_to_string
-from backend.core.logging import logger
-from backend.core.config import settings
-from backend.db.models import custody, users
-from backend.schemas.custody import CustodyRecord, CustodyResponse
-from backend.services.notification_service import send_custody_change_notification
-from backend.services.redis_service import redis_service
+from core.database import database
+from core.security import get_current_user, uuid_to_string
+from core.logging import logger
+from core.config import settings
+from db.models import custody, users
+from schemas.custody import CustodyRecord, CustodyResponse
+from services.notification_service import send_custody_change_notification
+from services.redis_service import redis_service
 
 router = APIRouter()
 

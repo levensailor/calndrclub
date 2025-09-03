@@ -5,11 +5,11 @@ import os
 import httpx
 import math
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import medical_providers, users
-from backend.schemas.medical_provider import (
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import medical_providers, users
+from schemas.medical_provider import (
     MedicalProviderCreate,
     MedicalProviderUpdate,
     MedicalProviderResponse,

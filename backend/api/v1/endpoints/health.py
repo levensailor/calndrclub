@@ -5,8 +5,8 @@ Monitor database connectivity and system health
 
 import logging
 from fastapi import APIRouter, HTTPException
-from backend.core.database import database
-from backend.core.logging import logger
+from core.database import database
+from core.logging import logger
 
 router = APIRouter()
 

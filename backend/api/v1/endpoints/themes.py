@@ -3,10 +3,10 @@ from typing import List
 import uuid
 from datetime import datetime, timezone
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.db.models import themes, user_preferences
-from backend.schemas import theme as theme_schema
+from core.database import database
+from core.security import get_current_user
+from db.models import themes, user_preferences
+from schemas import theme as theme_schema
 
 router = APIRouter()
 

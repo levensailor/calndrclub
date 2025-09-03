@@ -1,12 +1,12 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.core.database import database
-from backend.core.security import get_current_user, uuid_to_string
-from backend.core.logging import logger
-from backend.db.models import users
-from backend.schemas.user import FamilyMember, FamilyMemberEmail, CoParentCreate, UserResponse
-from backend.schemas.custody import Custodian
+from core.database import database
+from core.security import get_current_user, uuid_to_string
+from core.logging import logger
+from db.models import users
+from schemas.user import FamilyMember, FamilyMemberEmail, CoParentCreate, UserResponse
+from schemas.custody import Custodian
 import secrets
 import uuid
 
@@ -17,7 +17,7 @@ async def invite_co_parent(co_parent_data: CoParentCreate, current_user = Depend
     """
     Invites a co-parent to the current user's family.
     """
-    from backend.core.security import get_password_hash
+    from core.security import get_password_hash
 
     family_id = current_user['family_id']
     
@@ -175,7 +175,7 @@ async def request_location(target_user_id: str, current_user = Depends(get_curre
     import json
     import uuid as uuid_module
     import boto3
-    from backend.core.config import settings
+    from core.config import settings
     
     if not settings.SNS_PLATFORM_APPLICATION_ARN:
         logger.warning("SNS client not configured. Cannot send location request.")

@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import babysitters, babysitter_families
-from backend.schemas.babysitter import BabysitterCreate, BabysitterResponse
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import babysitters, babysitter_families
+from schemas.babysitter import BabysitterCreate, BabysitterResponse
 
 router = APIRouter()
 

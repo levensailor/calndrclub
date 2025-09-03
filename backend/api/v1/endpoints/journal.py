@@ -4,11 +4,11 @@ from datetime import date, datetime
 from sqlalchemy import and_, or_, desc
 import sqlalchemy
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import journal_entries, users
-from backend.schemas.journal import JournalEntry, JournalEntryCreate, JournalEntryUpdate
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import journal_entries, users
+from schemas.journal import JournalEntry, JournalEntryCreate, JournalEntryUpdate
 
 router = APIRouter()
 

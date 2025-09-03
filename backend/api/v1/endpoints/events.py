@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.dialects import postgresql
 from sqlalchemy import text
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.core.config import settings
-from backend.db.models import events
-from backend.schemas.event import LegacyEvent
-from backend.services.redis_service import redis_service, events_cache_key
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from core.config import settings
+from db.models import events
+from schemas.event import LegacyEvent
+from services.redis_service import redis_service, events_cache_key
 
 router = APIRouter()
 

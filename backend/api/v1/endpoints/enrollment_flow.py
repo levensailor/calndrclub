@@ -3,11 +3,11 @@ from typing import Dict, Any, List, Optional
 from datetime import datetime, timezone, date
 import uuid
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import users, families, children
-from backend.schemas.enrollment_flow import (
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import users, families, children
+from schemas.enrollment_flow import (
     CoparentInfoRequest, 
     ChildInfoRequest, 
     CustodyScheduleRequest,

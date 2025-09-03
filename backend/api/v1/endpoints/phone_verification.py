@@ -2,8 +2,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Dict, Any
 
-from backend.core.logging import logger
-from backend.services.phone_verification_service import phone_verification_service
+from core.logging import logger
+from services.phone_verification_service import phone_verification_service
 
 router = APIRouter()
 

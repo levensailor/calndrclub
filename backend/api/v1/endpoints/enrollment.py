@@ -9,11 +9,11 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select, insert, update
 from sqlalchemy.sql import and_
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import enrollment_codes, users, families
-from backend.schemas.enrollment import (
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import enrollment_codes, users, families
+from schemas.enrollment import (
     EnrollmentCodeCreate,
     EnrollmentCodeResponse,
     EnrollmentCodeValidate,
@@ -21,7 +21,7 @@ from backend.schemas.enrollment import (
     EnrollmentInvite,
     EnrollmentEmailRequest
 )
-from backend.core.email import send_enrollment_invitation
+from core.email import send_enrollment_invitation
 
 router = APIRouter()
 

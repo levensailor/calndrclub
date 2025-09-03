@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.services.school_events_service import fetch_school_events
+from core.security import get_current_user
+from core.logging import logger
+from services.school_events_service import fetch_school_events
 
 router = APIRouter()
 

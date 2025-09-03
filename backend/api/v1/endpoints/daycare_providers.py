@@ -4,13 +4,13 @@ from datetime import datetime
 import os
 import httpx
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import daycare_providers, daycare_calendar_syncs
-from backend.schemas.daycare import DaycareProviderCreate, DaycareProviderResponse, DaycareSearchRequest, DaycareSearchResult
-from backend.services.daycare_events_service import discover_calendar_url, parse_events_from_url, store_daycare_events
-from backend.services.sync_management_service import assign_daycare_sync_to_family
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import daycare_providers, daycare_calendar_syncs
+from schemas.daycare import DaycareProviderCreate, DaycareProviderResponse, DaycareSearchRequest, DaycareSearchResult
+from services.daycare_events_service import discover_calendar_url, parse_events_from_url, store_daycare_events
+from services.sync_management_service import assign_daycare_sync_to_family
 
 router = APIRouter()
 

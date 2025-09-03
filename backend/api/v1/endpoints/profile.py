@@ -5,11 +5,11 @@ import boto3
 from botocore.exceptions import ClientError
 import traceback
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.core.logging import logger
-from backend.db.models import users
-from backend.schemas.user import UserProfile
+from core.database import database
+from core.security import get_current_user
+from core.logging import logger
+from db.models import users
+from schemas.user import UserProfile
 
 router = APIRouter()
 
@@ -63,7 +63,7 @@ async def upload_profile_photo(
         user_record = await database.fetch_one(users.select().where(users.c.id == current_user['id']))
         
         # Get user preferences for selected theme
-        from backend.db.models import user_preferences
+        from db.models import user_preferences
         prefs_query = user_preferences.select().where(user_preferences.c.user_id == current_user['id'])
         user_prefs = await database.fetch_one(prefs_query)
         

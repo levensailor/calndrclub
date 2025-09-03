@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func
 from datetime import datetime, date, time
 
-from backend.core.database import database
-from backend.core.security import get_current_user
-from backend.db.models import medications, users
-from backend.schemas.medication import (
+from core.database import database
+from core.security import get_current_user
+from db.models import medications, users
+from schemas.medication import (
     MedicationCreate,
     MedicationUpdate,
     MedicationResponse,

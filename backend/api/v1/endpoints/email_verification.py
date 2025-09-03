@@ -4,10 +4,10 @@ import random
 import string
 from datetime import datetime, timedelta, timezone
 
-from backend.core.database import database
-from backend.core.logging import logger
-from backend.schemas.email_verification import EmailVerificationRequest, EmailVerificationResponse, EmailVerificationConfirm
-from backend.services.email_service import email_service
+from core.database import database
+from core.logging import logger
+from schemas.email_verification import EmailVerificationRequest, EmailVerificationResponse, EmailVerificationConfirm
+from services.email_service import email_service
 
 router = APIRouter()
 
