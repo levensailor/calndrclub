@@ -6,23 +6,23 @@ import asyncio
 from pydantic import BaseModel
 from sqlalchemy import func
 
-from core.database import database
-from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
-from core.logging import logger
-from db.models import users, families
-from schemas.auth import Token
-from schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
-from schemas.auth import LoginAfterVerificationRequest
-from services.email_service import email_service
-from services.sms_service import sms_service
+from backend.core.database import database
+from backend.core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
+from backend.core.logging import logger
+from backend.db.models import users, families
+from backend.schemas.auth import Token
+from backend.schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
+from backend.schemas.auth import LoginAfterVerificationRequest
+from backend.services.email_service import email_service
+from backend.services.sms_service import sms_service
 import traceback
 from fastapi import Request
 from jose import jwt
-from services.apple_auth_service import exchange_code as apple_exchange_code
-from services.google_auth_service import exchange_code as google_exchange_code, get_user_info as google_get_user_info
-# from services.facebook_auth_service import get_user_info as facebook_get_user_info
+from backend.services.apple_auth_service import exchange_code as apple_exchange_code
+from backend.services.google_auth_service import exchange_code as google_exchange_code, get_user_info as google_get_user_info
+# from backend.services.facebook_auth_service import get_user_info as facebook_get_user_info
 from urllib.parse import urlencode
-from core.config import settings
+from backend.core.config import settings
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from typing import Dict, Any

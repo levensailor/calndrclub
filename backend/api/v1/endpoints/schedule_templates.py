@@ -3,12 +3,12 @@ from typing import List
 from datetime import datetime, date, timedelta
 import json
 
-from core.database import database
-from core.security import get_current_user, uuid_to_string
-from core.logging import logger
-from db.models import schedule_templates, custody
-from services.redis_service import redis_service
-from schemas.schedule import (
+from backend.core.database import database
+from backend.core.security import get_current_user, uuid_to_string
+from backend.core.logging import logger
+from backend.db.models import schedule_templates, custody
+from backend.services.redis_service import redis_service
+from backend.schemas.schedule import (
     ScheduleTemplate, ScheduleTemplateCreate, ScheduleApplication, 
     ScheduleApplicationResponse, SchedulePatternType, WeeklySchedulePattern,
     AlternatingWeeksPattern
@@ -368,7 +368,7 @@ async def apply_schedule_template(application: ScheduleApplication, current_user
         family_id = current_user['family_id']
         
         # Get family custodians to map parent1/parent2 to actual IDs
-        from db.models import users
+        from backend.db.models import users
         custodians_query = users.select().where(users.c.family_id == family_id).order_by(
             users.c.created_at.asc().nulls_last()
         )
@@ -405,7 +405,7 @@ async def apply_schedule_template(application: ScheduleApplication, current_user
         current_date = start_date
         
         # Get existing custody records in the date range for conflict detection
-        from db.models import custody
+        from backend.db.models import custody
         existing_custody_query = custody.select().where(
             (custody.c.family_id == family_id) &
             (custody.c.date.between(start_date, end_date))

@@ -8,12 +8,12 @@ import re
 import traceback
 import logging
 import uuid
-from core.config import settings
-from core.security import get_current_user, get_password_hash, verify_password
-from core.database import database
-from db.models import users, user_preferences, user_profiles, families
-from schemas.user import UserCreate, UserUpdate, UserResponse, UserProfile, UserProfileUpdate, UserPreferences, EnrollmentStatusUpdate
-from schemas.family import FamilyCreate, FamilyResponse
+from backend.core.config import settings
+from backend.core.security import get_current_user, get_password_hash, verify_password
+from backend.core.database import database
+from backend.db.models import users, user_preferences, user_profiles, families
+from backend.schemas.user import UserCreate, UserUpdate, UserResponse, UserProfile, UserProfileUpdate, UserPreferences, EnrollmentStatusUpdate
+from backend.schemas.family import FamilyCreate, FamilyResponse
 
 router = APIRouter()
 logger = logging.getLogger(__name__)

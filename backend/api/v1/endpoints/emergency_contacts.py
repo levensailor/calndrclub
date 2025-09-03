@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
-from core.database import database
-from core.security import get_current_user
-from core.logging import logger
-from db.models import emergency_contacts
-from schemas.emergency_contact import EmergencyContactCreate, EmergencyContactResponse
+from backend.core.database import database
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.db.models import emergency_contacts
+from backend.schemas.emergency_contact import EmergencyContactCreate, EmergencyContactResponse
 
 router = APIRouter()
 

@@ -3,11 +3,11 @@ from datetime import datetime
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from core.database import database
-from core.security import get_current_user, uuid_to_string
-from core.logging import logger
-from db.models import children
-from schemas.child import ChildCreate, ChildResponse
+from backend.core.database import database
+from backend.core.security import get_current_user, uuid_to_string
+from backend.core.logging import logger
+from backend.db.models import children
+from backend.schemas.child import ChildCreate, ChildResponse
 
 router = APIRouter()
 

@@ -3,11 +3,11 @@ from datetime import datetime
 import hashlib
 import time
 
-from core.database import database
-from core.security import get_current_user
-from core.logging import logger
-from db.models import group_chats
-from schemas.group_chat import GroupChatCreate
+from backend.core.database import database
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.db.models import group_chats
+from backend.schemas.group_chat import GroupChatCreate
 
 router = APIRouter()
 

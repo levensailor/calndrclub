@@ -5,13 +5,13 @@ import os
 import json
 import httpx
 
-from core.database import database
-from core.security import get_current_user
-from core.logging import logger
-from db.models import school_providers, school_calendar_syncs
-from schemas.school import SchoolProviderCreate, SchoolProviderResponse, SchoolSearchRequest, SchoolSearchResult
-from services.school_events_service import discover_calendar_url, parse_events_from_url, store_school_events
-from services.sync_management_service import assign_school_sync_to_family
+from backend.core.database import database
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.db.models import school_providers, school_calendar_syncs
+from backend.schemas.school import SchoolProviderCreate, SchoolProviderResponse, SchoolSearchRequest, SchoolSearchResult
+from backend.services.school_events_service import discover_calendar_url, parse_events_from_url, store_school_events
+from backend.services.sync_management_service import assign_school_sync_to_family
 
 router = APIRouter()
 

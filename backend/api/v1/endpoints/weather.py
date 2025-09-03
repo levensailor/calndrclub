@@ -2,10 +2,10 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 import httpx
 
-from core.security import get_current_user
-from core.logging import logger
-from schemas.weather import WeatherAPIResponse
-from services.weather_service import get_cache_key, get_cached_weather, cache_weather_data
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.schemas.weather import WeatherAPIResponse
+from backend.services.weather_service import get_cache_key, get_cached_weather, cache_weather_data
 
 router = APIRouter()
 

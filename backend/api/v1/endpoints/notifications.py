@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import List
 
-from core.database import database
-from core.security import get_current_user
-from core.logging import logger
-from db.models import notification_emails
-from schemas.notification import NotificationEmail, AddNotificationEmail
+from backend.core.database import database
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.db.models import notification_emails
+from backend.schemas.notification import NotificationEmail, AddNotificationEmail
 
 router = APIRouter()
 

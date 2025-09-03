@@ -2,11 +2,11 @@ from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from datetime import datetime
 
-from core.database import database
-from core.security import get_current_user
-from core.logging import logger
-from db.models import reminders
-from schemas.reminder import ReminderCreate, ReminderUpdate, ReminderResponse
+from backend.core.database import database
+from backend.core.security import get_current_user
+from backend.core.logging import logger
+from backend.db.models import reminders
+from backend.schemas.reminder import ReminderCreate, ReminderUpdate, ReminderResponse
 
 router = APIRouter()
 
