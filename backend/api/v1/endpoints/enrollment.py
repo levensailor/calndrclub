@@ -111,7 +111,7 @@ async def create_enrollment_code(
             success=True,
             message="Enrollment code created successfully",
             enrollmentCode=code,
-            familyId=family_id
+            familyId=str(family_id)  # Convert UUID to string
         )
     except Exception as e:
         logger.error(f"Error creating enrollment code: {str(e)}")
@@ -143,7 +143,7 @@ async def validate_enrollment_code(
             success=True,
             message="Valid enrollment code",
             enrollmentCode=data.code,
-            familyId=code_record["family_id"]
+            familyId=str(code_record["family_id"])  # Convert UUID to string
         )
     except Exception as e:
         logger.error(f"Error validating enrollment code: {str(e)}")
