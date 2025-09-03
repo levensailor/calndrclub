@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD")
     SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")
     SMTP_PORT: Optional[int] = os.getenv("SMTP_PORT")
-    EMAIL_SENDER: str = os.getenv("EMAIL_SENDER", "noreply@calndr.club")
+    EMAIL_SENDER: str = os.getenv("EMAIL_SENDER", "no-reply@calndr.club")
 
     # Apple Sign-In
     APPLE_CLIENT_ID: Optional[str] = os.getenv("APPLE_CLIENT_ID")
