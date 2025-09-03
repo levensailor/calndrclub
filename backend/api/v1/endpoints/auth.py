@@ -11,7 +11,7 @@ from sqlalchemy.sql import func
 
 from core.config import settings
 from core.database import database
-from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string
+from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string, get_current_user
 from db.models import users, families
 from schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
 
