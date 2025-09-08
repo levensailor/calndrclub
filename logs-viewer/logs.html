@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CloudWatch Log Viewer - Calndr</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            height: 100vh;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #2d2d2d;
+            padding: 15px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .header h1 {
+            color: #4CAF50;
+            font-size: 24px;
+        }
+        
+        .status {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4CAF50;
+            animation: pulse 2s infinite;
+        }
+        
+        .status-indicator.disconnected {
+            background: #f44336;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .controls {
+            background: #2d2d2d;
+            padding: 10px 20px;
+            border-bottom: 1px solid #444;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .controls button {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .controls button:hover {
+            background: #45a049;
+        }
+        
+        .controls button.secondary {
+            background: #666;
+        }
+        
+        .controls button.secondary:hover {
+            background: #777;
+        }
+        
+        .controls label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: #ccc;
+        }
+        
+        .log-container {
+            height: calc(100vh - 120px);
+            overflow-y: auto;
+            padding: 20px;
+            background: #1a1a1a;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 8px 12px;
+            border-left: 3px solid #4CAF50;
+            background: rgba(76, 175, 80, 0.1);
+            border-radius: 4px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+        
+        .log-entry.error {
+            border-left-color: #f44336;
+            background: rgba(244, 67, 54, 0.1);
+        }
+        
+        .log-entry.warning {
+            border-left-color: #ff9800;
+            background: rgba(255, 152, 0, 0.1);
+        }
+        
+        .log-entry.debug {
+            border-left-color: #2196F3;
+            background: rgba(33, 150, 243, 0.1);
+        }
+        
+        .log-timestamp {
+            color: #888;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .log-level {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: bold;
+            margin-right: 10px;
+            min-width: 50px;
+            text-align: center;
+        }
+        
+        .log-level.INFO {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .log-level.ERROR {
+            background: #f44336;
+            color: white;
+        }
+        
+        .log-level.WARNING {
+            background: #ff9800;
+            color: white;
+        }
+        
+        .log-level.DEBUG {
+            background: #2196F3;
+            color: white;
+        }
+        
+        .log-stream {
+            color: #666;
+            font-size: 11px;
+            margin-right: 10px;
+        }
+        
+        .log-message {
+            color: #e0e0e0;
+        }
+        
+        .no-logs {
+            text-align: center;
+            color: #666;
+            font-size: 16px;
+            margin-top: 50px;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #4CAF50;
+            font-size: 16px;
+            margin-top: 50px;
+        }
+        
+        .ecs-status {
+            background: #2d2d2d;
+            border: 1px solid #444;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+        
+        .ecs-status h3 {
+            color: #4CAF50;
+            margin-bottom: 8px;
+        }
+        
+        .ecs-status .status-item {
+            margin: 4px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔍 CloudWatch Log Viewer</h1>
+        <div class="status">
+            <div class="status-indicator" id="connectionStatus"></div>
+            <span id="statusText">Connecting...</span>
+            <span id="clientCount">0 clients</span>
+        </div>
+    </div>
+    
+    <div class="controls">
+        <button onclick="clearLogs()">Clear Logs</button>
+        <button onclick="scrollToBottom()" class="secondary">Scroll to Bottom</button>
+        <button onclick="requestEcsStatus()" class="secondary">ECS Status</button>
+        <label>
+            <input type="checkbox" id="hideHealthChecks" onchange="toggleHealthFilter()">
+            Hide Health Checks
+        </label>
+        <label>
+            <input type="checkbox" id="autoScroll" checked>
+            Auto Scroll
+        </label>
+    </div>
+    
+    <div class="log-container" id="logContainer">
+        <div class="loading">Connecting to log stream...</div>
+    </div>
+
+    <script>
+        let ws = null;
+        let autoScroll = true;
+        let logContainer = document.getElementById('logContainer');
+        let connectionStatus = document.getElementById('connectionStatus');
+        let statusText = document.getElementById('statusText');
+        let clientCount = document.getElementById('clientCount');
+        
+        function connect() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUrl = `${protocol}//${window.location.host}/ws`;
+            
+            ws = new WebSocket(wsUrl);
+            
+            ws.onopen = function() {
+                console.log('Connected to WebSocket');
+                connectionStatus.classList.remove('disconnected');
+                statusText.textContent = 'Connected';
+                logContainer.innerHTML = '<div class="loading">Loading recent logs...</div>';
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'log') {
+                    addLogEntry(data.data);
+                } else if (data.type === 'ecs_status') {
+                    showEcsStatus(data.data);
+                } else if (data.type === 'status') {
+                    updateStatus(data.data);
+                }
+            };
+            
+            ws.onclose = function() {
+                console.log('WebSocket connection closed');
+                connectionStatus.classList.add('disconnected');
+                statusText.textContent = 'Disconnected';
+                
+                // Attempt to reconnect after 5 seconds
+                setTimeout(connect, 5000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                connectionStatus.classList.add('disconnected');
+                statusText.textContent = 'Connection Error';
+            };
+        }
+        
+        function addLogEntry(logData) {
+            // Remove loading message if present
+            const loading = logContainer.querySelector('.loading');
+            if (loading) {
+                loading.remove();
+            }
+            
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${logData.level.toLowerCase()}`;
+            
+            logEntry.innerHTML = `
+                <span class="log-timestamp">${logData.timestamp}</span>
+                <span class="log-level ${logData.level}">${logData.level}</span>
+                <span class="log-stream">[${logData.stream}]</span>
+                <span class="log-message">${escapeHtml(logData.message)}</span>
+            `;
+            
+            logContainer.appendChild(logEntry);
+            
+            // Auto-scroll if enabled
+            if (autoScroll) {
+                scrollToBottom();
+            }
+            
+            // Limit log entries to prevent memory issues
+            const entries = logContainer.querySelectorAll('.log-entry');
+            if (entries.length > 1000) {
+                entries[0].remove();
+            }
+        }
+        
+        function showEcsStatus(statusData) {
+            const existingStatus = logContainer.querySelector('.ecs-status');
+            if (existingStatus) {
+                existingStatus.remove();
+            }
+            
+            const statusDiv = document.createElement('div');
+            statusDiv.className = 'ecs-status';
+            statusDiv.innerHTML = `
+                <h3>ECS Service Status</h3>
+                <div class="status-item"><strong>Cluster:</strong> ${statusData.cluster || 'N/A'}</div>
+                <div class="status-item"><strong>Service:</strong> ${statusData.service || 'N/A'}</div>
+                <div class="status-item"><strong>Running Tasks:</strong> ${statusData.running_tasks || 0}</div>
+                <div class="status-item"><strong>Desired Tasks:</strong> ${statusData.desired_tasks || 0}</div>
+                <div class="status-item"><strong>Status:</strong> ${statusData.status || 'Unknown'}</div>
+            `;
+            
+            logContainer.insertBefore(statusDiv, logContainer.firstChild);
+        }
+        
+        function updateStatus(statusData) {
+            if (statusData.clients_connected !== undefined) {
+                clientCount.textContent = `${statusData.clients_connected} clients`;
+            }
+        }
+        
+        function clearLogs() {
+            const ecsStatus = logContainer.querySelector('.ecs-status');
+            logContainer.innerHTML = '';
+            if (ecsStatus) {
+                logContainer.appendChild(ecsStatus);
+            }
+        }
+        
+        function scrollToBottom() {
+            logContainer.scrollTop = logContainer.scrollHeight;
+        }
+        
+        function toggleHealthFilter() {
+            const hideHealth = document.getElementById('hideHealthChecks').checked;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'toggle_health_filter',
+                    hide_health: hideHealth
+                }));
+            }
+        }
+        
+        function requestEcsStatus() {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({
+                    type: 'request_ecs_status'
+                }));
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Event listeners
+        document.getElementById('autoScroll').addEventListener('change', function() {
+            autoScroll = this.checked;
+        });
+        
+        // Start connection
+        connect();
+        
+        // Update page title with connection status
+        setInterval(() => {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                document.title = '🟢 CloudWatch Log Viewer - Calndr';
+            } else {
+                document.title = '🔴 CloudWatch Log Viewer - Calndr';
+            }
+        }, 1000);
+    </script>
+</body>
+</html>

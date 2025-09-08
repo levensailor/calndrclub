@@ -2,8 +2,10 @@ import logging
 import traceback
 from datetime import datetime, timedelta
 from typing import Optional
+import uuid
+import json
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -14,6 +16,10 @@ from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string, get_current_user
 from db.models import users, families
 from schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
+from services.apple_auth_service import exchange_code as apple_exchange_code
+from services.google_auth_service import exchange_code as google_exchange_code, get_user_info as google_get_user_info
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
 # Token URL (used by Swagger UI)
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.API_V1_STR}/auth/token")
@@ -524,3 +530,203 @@ async def reset_password(token: str, new_password: str):
     except Exception as e:
         logger.error(f"Password reset error: {str(e)}")
         raise HTTPException(status_code=500, detail="Error resetting password")
+
+@router.post("/apple/callback", include_in_schema=False)
+async def apple_callback(request: Request):
+    """
+    Handles the callback from Apple's sign-in process.
+    """
+    form_data = await request.form()
+    code = form_data.get("code")
+    id_token_jwt = form_data.get("id_token")
+    user_data_str = form_data.get("user")
+    
+    if not code:
+        logger.error("Apple callback missing authorization code.")
+        raise HTTPException(status_code=400, detail="Authorization code is missing.")
+
+    try:
+        # Exchange the authorization code for tokens
+        token_response = await apple_exchange_code(code)
+        
+        if "error" in token_response:
+            logger.error(f"Apple token exchange failed: {token_response.get('error_description')}")
+            raise HTTPException(status_code=400, detail="Apple token exchange failed.")
+
+        apple_id_token = token_response.get("id_token")
+        
+        # Decode the ID token to get user information
+        decoded_token = jwt.decode(apple_id_token, "", options={"verify_signature": False})
+        
+        apple_user_id = decoded_token.get("sub")
+        email = decoded_token.get("email")
+
+        # Handle user data if provided (only on first sign-in)
+        first_name, last_name = None, None
+        if user_data_str:
+            user_data = json.loads(user_data_str)
+            if "name" in user_data:
+                first_name = user_data["name"].get("firstName")
+                last_name = user_data["name"].get("lastName")
+
+        # Check if user exists
+        user = await get_user_by_apple_id(apple_user_id)
+        if not user:
+            # If user not found by Apple ID, check by email
+            if email:
+                user = await get_user_by_email(email)
+                if user:
+                    # Link Apple ID to existing account
+                    await link_apple_id_to_user(user.id, apple_user_id)
+                else:
+                    # Create a new user
+                    user = await create_social_user(
+                        email=email,
+                        first_name=first_name,
+                        last_name=last_name,
+                        apple_user_id=apple_user_id
+                    )
+            else:
+                # This case happens if Apple doesn't provide an email (e.g., user chose to hide it)
+                # and it's their first time signing in. We can't proceed without an email.
+                logger.error("Apple sign-in failed: email not provided for a new user.")
+                raise HTTPException(status_code=400, detail="Email is required for new users.")
+
+        # Create access token
+        access_token = create_access_token(
+            data={"sub": str(user.id), "family_id": str(user.family_id) if user.family_id else None}
+        )
+
+        # Build redirect URL with token
+        redirect_url = f"calndr://login?token={access_token}"
+        
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url=redirect_url, status_code=status.HTTP_303_SEE_OTHER)
+
+    except Exception as e:
+        logger.error(f"Error during Apple callback: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during Apple sign-in.")
+
+@router.post("/google/ios-login", response_model=LoginResponse)
+async def google_ios_login(request: Request):
+    """
+    Handles Google sign-in from the iOS app.
+    """
+    body = await request.json()
+    id_token_str = body.get("id_token")
+
+    if not id_token_str:
+        logger.error("Google iOS login missing ID token.")
+        raise HTTPException(status_code=400, detail="ID token is missing.")
+
+    try:
+        # Verify the ID token
+        id_info = id_token.verify_oauth2_token(
+            id_token_str, google_requests.Request(), settings.GOOGLE_CLIENT_ID_IOS
+        )
+        
+        google_user_id = id_info.get("sub")
+        email = id_info.get("email")
+        first_name = id_info.get("given_name")
+        last_name = id_info.get("family_name")
+
+        if not email:
+            logger.error("Google sign-in failed: email not provided.")
+            raise HTTPException(status_code=400, detail="Email is required.")
+
+        # Check if user exists
+        user = await get_user_by_google_id(google_user_id)
+        if not user:
+            user = await get_user_by_email(email)
+            if user:
+                # Link Google ID to existing account
+                await link_google_id_to_user(user.id, google_user_id)
+            else:
+                # Create new user
+                user = await create_social_user(
+                    email=email,
+                    first_name=first_name,
+                    last_name=last_name,
+                    google_user_id=google_user_id
+                )
+
+        # Create access token and user profile
+        family_id = getattr(user, 'family_id', None)
+        access_token = create_access_token(
+            data={"sub": uuid_to_string(user.id), "family_id": uuid_to_string(family_id) if family_id else None}
+        )
+        
+        user_dict = dict(user)
+        user_dict['id'] = uuid_to_string(user_dict.get('id'))
+        user_dict['family_id'] = uuid_to_string(user_dict.get('family_id'))
+        user_profile = UserProfile(**user_dict)
+
+        return {
+            "access_token": access_token, 
+            "token_type": "bearer",
+            "user": user_profile
+        }
+
+    except ValueError as e:
+        # This can be raised by id_token.verify_oauth2_token
+        logger.error(f"Invalid Google ID token: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Google ID token.")
+    except Exception as e:
+        logger.error(f"Error during Google iOS login: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(status_code=500, detail="An unexpected error occurred during Google sign-in.")
+
+async def get_user_by_email(email: str):
+    query = users.select().where(users.c.email == email)
+    return await database.fetch_one(query)
+
+async def get_user_by_apple_id(apple_id: str):
+    query = users.select().where(users.c.apple_user_id == apple_id)
+    return await database.fetch_one(query)
+
+async def link_apple_id_to_user(user_id: str, apple_id: str):
+    query = users.update().where(users.c.id == user_id).values(apple_user_id=apple_id)
+    await database.execute(query)
+
+async def get_user_by_google_id(google_id: str):
+    query = users.select().where(users.c.google_user_id == google_id)
+    return await database.fetch_one(query)
+
+async def link_google_id_to_user(user_id: str, google_id: str):
+    query = users.update().where(users.c.id == user_id).values(google_user_id=google_id)
+    await database.execute(query)
+
+async def create_social_user(email: str, first_name: str, last_name: str, apple_user_id: str = None, google_user_id: str = None):
+    """
+    Creates a new user from social login information and a new family for them.
+    """
+    async with database.transaction():
+        # Create a new family for the user
+        family_id = uuid.uuid4()
+        family_name = f"{first_name}'s Family" if first_name else "New Family"
+        family_values = {"id": family_id, "name": family_name}
+        await database.execute(families.insert().values(**family_values))
+        logger.info(f"Created new family: {family_name} with ID: {family_id}")
+
+        # Create the new user
+        user_id = uuid.uuid4()
+        user_values = {
+            "id": user_id,
+            "family_id": family_id,
+            "first_name": first_name,
+            "last_name": last_name,
+            "email": email,
+            "apple_user_id": apple_user_id,
+            "google_user_id": google_user_id,
+            "status": "active",
+            "enrolled": False,
+            "created_at": datetime.utcnow()
+        }
+        await database.execute(users.insert().values(**user_values))
+        logger.info(f"Created new user with ID: {user_id} for email: {email}")
+        
+        # Fetch the newly created user to return it
+        query = users.select().where(users.c.id == user_id)
+        new_user = await database.fetch_one(query)
+        return new_user
