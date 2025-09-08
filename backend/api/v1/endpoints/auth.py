@@ -669,7 +669,24 @@ async def google_ios_login(request: Request):
         user_dict = dict(user)
         user_dict['id'] = uuid_to_string(user_dict.get('id'))
         user_dict['family_id'] = uuid_to_string(user_dict.get('family_id'))
-        user_profile = UserProfile(**user_dict)
+
+        # Convert datetime objects to strings
+        if user_dict.get('last_signed_in'):
+            user_dict['last_signed_in'] = str(user_dict['last_signed_in'])
+        if user_dict.get('created_at'):
+            user_dict['created_at'] = str(user_dict['created_at'])
+        if user_dict.get('updated_at'):
+            user_dict['updated_at'] = str(user_dict['updated_at'])
+
+        # Handle nullable boolean fields
+        user_dict['enrolled'] = user_dict.get('enrolled') or False
+        user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled') or False
+        user_dict['coparent_invited'] = user_dict.get('coparent_invited') or False
+        
+        # Filter out 'updated_at' if it's not in the UserProfile schema
+        user_dict_filtered = {k: v for k, v in user_dict.items() if k != 'updated_at'}
+
+        user_profile = UserProfile(**user_dict_filtered)
 
         return {
             "access_token": access_token, 
