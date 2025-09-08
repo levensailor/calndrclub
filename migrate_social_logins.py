@@ -7,6 +7,7 @@ import logging
 from sqlalchemy import text
 from backend.core.database import database
 
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
