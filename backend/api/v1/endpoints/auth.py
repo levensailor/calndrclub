@@ -555,6 +555,7 @@ async def apple_callback(request: Request):
             raise HTTPException(status_code=400, detail="Apple token exchange failed.")
 
         apple_id_token = token_response.get("id_token")
+        apple_access_token = token_response.get("access_token")
         
         # Decode the ID token to get user information
         decoded_token = jwt.decode(
@@ -562,7 +563,8 @@ async def apple_callback(request: Request):
             "", 
             options={"verify_signature": False},
             audience=settings.APPLE_CLIENT_ID,
-            issuer="https://appleid.apple.com"
+            issuer="https://appleid.apple.com",
+            access_token=apple_access_token
         )
         
         apple_user_id = decoded_token.get("sub")
@@ -620,8 +622,8 @@ async def google_ios_login(request: Request):
     """
     Handles Google sign-in from the iOS app.
     """
-    body = await request.json()
-    id_token_str = body.get("id_token")
+    form_data = await request.form()
+    id_token_str = form_data.get("id_token")
 
     if not id_token_str:
         logger.error("Google iOS login missing ID token.")
