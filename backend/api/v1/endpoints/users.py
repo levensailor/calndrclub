@@ -93,7 +93,7 @@ async def create_user(user: UserCreate):
         "status": "active"
     }
 
-@router.get("/me", response_model=UserProfile)
+@router.get("/profile", response_model=UserProfile)
 async def get_current_user_profile(current_user = Depends(get_current_user)):
     """Get current user profile."""
     user_data = await database.fetch_one(
