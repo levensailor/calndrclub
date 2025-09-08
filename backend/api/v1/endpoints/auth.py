@@ -557,7 +557,13 @@ async def apple_callback(request: Request):
         apple_id_token = token_response.get("id_token")
         
         # Decode the ID token to get user information
-        decoded_token = jwt.decode(apple_id_token, "", options={"verify_signature": False})
+        decoded_token = jwt.decode(
+            apple_id_token, 
+            "", 
+            options={"verify_signature": False},
+            audience=settings.APPLE_CLIENT_ID,
+            issuer="https://appleid.apple.com"
+        )
         
         apple_user_id = decoded_token.get("sub")
         email = decoded_token.get("email")
