@@ -14,6 +14,7 @@ from sqlalchemy.sql import func
 from core.config import settings
 from core.database import database
 from core.security import verify_password, create_access_token, get_password_hash, uuid_to_string, get_current_user
+from core.logging import logger
 from db.models import users, families
 from schemas.user import UserProfile, UserRegistration, UserRegistrationResponse, UserRegistrationWithFamily
 from services.apple_auth_service import exchange_code as apple_exchange_code
