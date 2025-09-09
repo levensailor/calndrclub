@@ -114,24 +114,30 @@ async def get_current_user_profile(current_user = Depends(get_current_user)):
     )
     
     # Combine data
-    user_profile = {
-        "id": user_data['id'],
-        "email": user_data['email'],
-        "first_name": user_data['first_name'],
-        "last_name": user_data['last_name'],
-        "phone_number": user_data['phone_number'],
-        "family_id": user_data['family_id'],
-        "enrolled": user_data['enrolled'],
-        "coparent_enrolled": user_data.get('coparent_enrolled', False),
-        "coparent_invited": user_data.get('coparent_invited', False),
-        "bio": profile_data['bio'] if profile_data else "",
-        "profile_photo_url": user_data['profile_photo_url'] or (profile_data['profile_photo_url'] if profile_data else ""),
-        "theme": preferences_data['theme'] if preferences_data else "default",
-        "notification_preferences": preferences_data['notification_preferences'] if preferences_data else {"email": True, "push": True, "sms": False},
-        "created_at": user_data['created_at'],
-        "updated_at": user_data['updated_at']
-    }
-    return user_profile
+    user_dict = dict(user_data)
+    user_dict.update(dict(profile_data) if profile_data else {})
+    user_dict.update(dict(preferences_data) if preferences_data else {})
+
+    # Convert UUIDs and datetimes to strings and handle optional fields
+    user_dict['id'] = str(user_dict.get('id'))
+    user_dict['family_id'] = str(user_dict.get('family_id'))
+    if user_dict.get('last_signed_in'):
+        user_dict['last_signed_in'] = str(user_dict['last_signed_in'])
+    if user_dict.get('created_at'):
+        user_dict['created_at'] = str(user_dict['created_at'])
+    if user_dict.get('updated_at'):
+        user_dict['updated_at'] = str(user_dict['updated_at'])
+
+    # Ensure nullable boolean fields have a default
+    user_dict['enrolled'] = user_dict.get('enrolled') or False
+    user_dict['coparent_enrolled'] = user_dict.get('coparent_enrolled') or False
+    user_dict['coparent_invited'] = user_dict.get('coparent_invited') or False
+    
+    # Filter keys to match the UserProfile schema
+    profile_keys = UserProfile.model_fields.keys()
+    user_profile_data = {k: v for k, v in user_dict.items() if k in profile_keys}
+    
+    return UserProfile(**user_profile_data)
 
 @router.put("/profile", response_model=UserProfile)
 async def update_user_profile(user_update: UserProfileUpdate, current_user = Depends(get_current_user)):
