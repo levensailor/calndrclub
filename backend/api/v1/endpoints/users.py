@@ -131,7 +131,6 @@ async def get_current_user_profile(current_user = Depends(get_current_user)):
         "created_at": user_data['created_at'],
         "updated_at": user_data['updated_at']
     }
-    
     return user_profile
 
 @router.put("/profile", response_model=UserProfile)
