@@ -91,6 +91,7 @@ class UserProfile(BaseSchema):
     created_at: Optional[str] = None
     family_id: str
     selected_theme_id: Optional[uuid.UUID] = None
+    theme: Optional[str] = None
 
 class UserPreferences(BaseSchema):
     """Schema for user preferences."""
