@@ -4,6 +4,23 @@ Migration script to add the theme column to the user_preferences table.
 """
 import asyncio
 import logging
+import sys
+import os
+import getpass
+
+# Add the project root to the Python path
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+# Prompt for credentials if not set in environment
+if not os.getenv("DB_USER"):
+    os.environ["DB_USER"] = input("Enter DB User: ")
+if not os.getenv("DB_PASSWORD"):
+    os.environ["DB_PASSWORD"] = getpass.getpass("Enter DB Password: ")
+if not os.getenv("DB_HOST"):
+    os.environ["DB_HOST"] = input("Enter DB Host (default: localhost): ") or "localhost"
+if not os.getenv("DB_NAME"):
+    os.environ["DB_NAME"] = input("Enter DB Name: ")
+
 from sqlalchemy import text
 from backend.core.database import database
 
