@@ -1,5 +1,5 @@
 # Multi-stage build for FastAPI application
-FROM python:3.11-slim as builder
+FROM python:3.11-slim AS builder
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -17,14 +17,14 @@ RUN apt-get update && apt-get install -y \
 WORKDIR /build
 
 # Copy requirements first for better caching
-COPY backend/requirements.txt .
+COPY requirements.txt .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
 # Production stage
-FROM python:3.11-slim as production
+FROM python:3.11-slim AS production
 
 # Set environment variables for immediate log output
 ENV PYTHONDONTWRITEBYTECODE=1
@@ -52,10 +52,7 @@ COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/pytho
 COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application code
-COPY backend/ .
-
-# Copy application code
-COPY backend/ .
+COPY . .
 
 # Copy APNs keys if they exist (using shell to handle wildcards safely)
 RUN if ls AuthKey_*.p8 1> /dev/null 2>&1; then cp AuthKey_*.p8 /app/ || echo "Failed to copy APNs keys"; else echo "No APNs keys found"; fi
