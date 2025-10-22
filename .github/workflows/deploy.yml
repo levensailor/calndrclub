@@ -42,17 +42,17 @@ jobs:
       id: env
       run: |
         if [[ ${{ github.ref }} == 'refs/heads/main' ]]; then
-          echo "environment=production" >> $GITHUB_OUTPUT
-          echo "cluster-name=${PROJECT_NAME}-production-cluster" >> $GITHUB_OUTPUT
-          echo "service-name=${PROJECT_NAME}-production-service" >> $GITHUB_OUTPUT
+          echo "environment=staging" >> $GITHUB_OUTPUT
+          echo "cluster-name=${PROJECT_NAME}-staging-cluster" >> $GITHUB_OUTPUT
+          echo "service-name=${PROJECT_NAME}-staging-service" >> $GITHUB_OUTPUT
         elif [[ ${{ github.ref }} == 'refs/heads/develop' ]]; then
           echo "environment=staging" >> $GITHUB_OUTPUT
           echo "cluster-name=${PROJECT_NAME}-staging-cluster" >> $GITHUB_OUTPUT
           echo "service-name=${PROJECT_NAME}-staging-service" >> $GITHUB_OUTPUT
         else
-          echo "environment=dev" >> $GITHUB_OUTPUT
-          echo "cluster-name=${PROJECT_NAME}-dev-cluster" >> $GITHUB_OUTPUT
-          echo "service-name=${PROJECT_NAME}-dev-service" >> $GITHUB_OUTPUT
+          echo "environment=staging" >> $GITHUB_OUTPUT
+          echo "cluster-name=${PROJECT_NAME}-staging-cluster" >> $GITHUB_OUTPUT
+          echo "service-name=${PROJECT_NAME}-staging-service" >> $GITHUB_OUTPUT
         fi
     
     - name: Set up Python
@@ -118,7 +118,7 @@ jobs:
     name: Deploy to Staging
     runs-on: ubuntu-latest
     needs: [test-and-build]
-    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment: staging
     
     steps:
@@ -253,17 +253,17 @@ jobs:
         echo "Running health check..."
         curl -f https://calndr.club/health || exit 1
     
-    - name: Sync backend to calndrclub repository
-      if: steps.check-cluster.outputs.cluster-exists == 'true'
-      env:
-        GH_PAT: ${{ secrets.CALNDRCLUB_PAT }}
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        # Configure git to use PAT for authentication
-        git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
-        chmod +x ./scripts/sync-backend-to-calndrclub.sh
-        CALNDRCLUB_DIR="$GITHUB_WORKSPACE/calndrclub" ./scripts/sync-backend-to-calndrclub.sh
+    # - name: Sync backend to calndrclub repository
+    #   if: steps.check-cluster.outputs.cluster-exists == 'true'
+    #   env:
+    #     GH_PAT: ${{ secrets.CALNDRCLUB_PAT }}
+    #   run: |
+    #     git config --global user.name "GitHub Actions"
+    #     git config --global user.email "actions@github.com"
+    #     # Configure git to use PAT for authentication
+    #     git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
+    #     chmod +x ./scripts/sync-backend-to-calndrclub.sh
+    #     CALNDRCLUB_DIR="$GITHUB_WORKSPACE/calndrclub" ./scripts/sync-backend-to-calndrclub.sh
     
     - name: Create GitHub release
       if: github.ref == 'refs/heads/main' && steps.check-cluster.outputs.cluster-exists == 'true'
