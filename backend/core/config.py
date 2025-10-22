@@ -66,6 +66,7 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: Optional[str] = os.getenv("SMTP_PASSWORD")
     SMTP_HOST: Optional[str] = os.getenv("SMTP_HOST")
     SMTP_PORT: Optional[int] = os.getenv("SMTP_PORT")
+    EMAIL_SENDER: str = os.getenv("EMAIL_SENDER", "no-reply@calndr.club")
 
     # Apple Sign-In
     APPLE_CLIENT_ID: Optional[str] = os.getenv("APPLE_CLIENT_ID")
@@ -76,6 +77,7 @@ class Settings(BaseSettings):
 
     # Google Sign-In
     GOOGLE_CLIENT_ID: Optional[str] = os.getenv("GOOGLE_CLIENT_ID")
+    GOOGLE_CLIENT_ID_IOS: Optional[str] = os.getenv("GOOGLE_CLIENT_ID_IOS")
     GOOGLE_CLIENT_SECRET: Optional[str] = os.getenv("GOOGLE_CLIENT_SECRET")
     GOOGLE_REDIRECT_URI: Optional[str] = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/auth/google/callback")
     

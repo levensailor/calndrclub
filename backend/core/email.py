@@ -1,55 +1,134 @@
 import logging
 from typing import Optional
+import boto3
+from botocore.exceptions import ClientError
+import os
+from core.config import settings
 
 # Configure logging
 logger = logging.getLogger(__name__)
 
-def send_enrollment_invitation(
-    to_email: str,
-    to_name: str,
-    from_name: str,
-    code: str,
-    app_download_url: str = "https://calndr.app"
+async def send_enrollment_invitation(
+    sender_name: str,
+    recipient_name: str,
+    recipient_email: str,
+    enrollment_code: str
 ) -> bool:
     """
     Send an enrollment invitation email to a co-parent.
     
-    This is a placeholder function. In a real implementation, you would
-    use an email service like SendGrid, AWS SES, etc.
-    
     Args:
-        to_email: The recipient's email address
-        to_name: The recipient's name
-        from_name: The sender's name
-        code: The enrollment code
-        app_download_url: URL to download the app
+        sender_name: The name of the person sending the invitation
+        recipient_name: The name of the recipient
+        recipient_email: The recipient's email address
+        enrollment_code: The enrollment code to include in the email
         
     Returns:
         bool: True if the email was sent successfully, False otherwise
     """
     try:
         # Log the email that would be sent
-        logger.info(f"Would send enrollment invitation to {to_email}")
-        logger.info(f"Subject: You've been invited to join calndr by {from_name}")
-        logger.info(f"Body: Hi {to_name}, {from_name} has invited you to join calndr.")
-        logger.info(f"Your enrollment code is: {code}")
-        logger.info(f"Download the app at {app_download_url} and enter this code to get started.")
+        logger.info(f"Sending enrollment invitation to {recipient_email}")
         
-        # In a real implementation, you would call an email service API here
-        # Example with AWS SES:
-        # import boto3
-        # ses_client = boto3.client('ses', region_name='us-east-1')
-        # response = ses_client.send_email(
-        #     Source='noreply@calndr.app',
-        #     Destination={'ToAddresses': [to_email]},
-        #     Message={
-        #         'Subject': {'Data': f"You've been invited to join calndr by {from_name}"},
-        #         'Body': {
-        #             'Text': {'Data': f"Hi {to_name}, {from_name} has invited you to join calndr. Your enrollment code is: {code}. Download the app at {app_download_url} and enter this code to get started."},
-        #             'Html': {'Data': f"<p>Hi {to_name},</p><p>{from_name} has invited you to join calndr.</p><p>Your enrollment code is: <strong>{code}</strong></p><p>Download the app at <a href='{app_download_url}'>{app_download_url}</a> and enter this code to get started.</p>"}
-        #         }
-        #     }
-        # )
+        # Create the email subject and body
+        subject = f"You've been invited to join Calndr by {sender_name}"
+        
+        # Plain text version
+        text_body = f"""
+Hi {recipient_name},
+
+{sender_name} has invited you to join Calndr, the co-parenting calendar app.
+
+Your enrollment code is: {enrollment_code}
+
+Download the app from the App Store and enter this code to get started.
+
+Thank you,
+The Calndr Team
+        """
+        
+        # HTML version
+        html_body = f"""
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calndr Invitation</title>
+    <style>
+        body {{
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .code {{
+            font-size: 24px;
+            font-weight: bold;
+            color: #4a90e2;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+            display: inline-block;
+            letter-spacing: 2px;
+        }}
+        .button {{
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #4a90e2;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+            margin-top: 20px;
+        }}
+    </style>
+</head>
+<body>
+    <h2>You've been invited to join Calndr!</h2>
+    <p>Hi {recipient_name},</p>
+    <p>{sender_name} has invited you to join Calndr, the co-parenting calendar app.</p>
+    <p>Your enrollment code is:</p>
+    <div class="code">{enrollment_code}</div>
+    <p>Download the app from the App Store and enter this code to get started.</p>
+    <a href="https://apps.apple.com/us/app/calndr/id1234567890" class="button">Download Calndr</a>
+    <p>Thank you,<br>The Calndr Team</p>
+</body>
+</html>
+        """
+        
+        # Use AWS SES if configured, otherwise just log the email
+        if settings.AWS_ACCESS_KEY_ID and settings.AWS_SECRET_ACCESS_KEY:
+            ses_client = boto3.client(
+                'ses',
+                region_name=settings.AWS_REGION,
+                aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+                aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY
+            )
+            
+            response = ses_client.send_email(
+                Source=f"Calndr <{settings.EMAIL_SENDER}>",
+                Destination={
+                    'ToAddresses': [recipient_email]
+                },
+                Message={
+                    'Subject': {'Data': subject},
+                    'Body': {
+                        'Text': {'Data': text_body},
+                        'Html': {'Data': html_body}
+                    }
+                }
+            )
+            
+            logger.info(f"Email sent! Message ID: {response['MessageId']}")
+        else:
+            # Just log the email if AWS SES is not configured
+            logger.info("AWS SES not configured. Would send email with:")
+            logger.info(f"Subject: {subject}")
+            logger.info(f"To: {recipient_email}")
+            logger.info(f"Body: {text_body}")
         
         return True
     except Exception as e:

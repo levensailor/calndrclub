@@ -43,3 +43,9 @@ class EnrollmentInvite(BaseModel):
     coparent_last_name: str
     coparent_email: str
     coparent_phone: Optional[str] = None
+
+class EnrollmentEmailRequest(BaseModel):
+    """Schema for sending an enrollment code email."""
+    email: str
+    name: str
+    code: str
