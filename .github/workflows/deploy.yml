@@ -175,18 +175,6 @@ jobs:
         # Add your staging health check URL
         curl -f https://staging.calndr.club/health || exit 1
     
-    - name: Sync backend to calndrclub repository
-      if: steps.check-cluster.outputs.cluster-exists == 'true'
-      env:
-        GH_PAT: ${{ secrets.CALNDRCLUB_PAT }}
-      run: |
-        git config --global user.name "GitHub Actions"
-        git config --global user.email "actions@github.com"
-        # Configure git to use PAT for authentication
-        git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
-        chmod +x ./scripts/sync-backend-to-calndrclub.sh
-        CALNDRCLUB_DIR="$GITHUB_WORKSPACE/calndrclub" ./scripts/sync-backend-to-calndrclub.sh
-    
     - name: Infrastructure not deployed
       if: steps.check-cluster.outputs.cluster-exists == 'false'
       run: |
@@ -253,18 +241,6 @@ jobs:
       run: |
         echo "Running health check..."
         curl -f https://calndr.club/health || exit 1
-    
-    # - name: Sync backend to calndrclub repository
-    #   if: steps.check-cluster.outputs.cluster-exists == 'true'
-    #   env:
-    #     GH_PAT: ${{ secrets.CALNDRCLUB_PAT }}
-    #   run: |
-    #     git config --global user.name "GitHub Actions"
-    #     git config --global user.email "actions@github.com"
-    #     # Configure git to use PAT for authentication
-    #     git config --global url."https://$GH_PAT@github.com/".insteadOf "https://github.com/"
-    #     chmod +x ./scripts/sync-backend-to-calndrclub.sh
-    #     CALNDRCLUB_DIR="$GITHUB_WORKSPACE/calndrclub" ./scripts/sync-backend-to-calndrclub.sh
     
     - name: Create GitHub release
       if: github.ref == 'refs/heads/main' && steps.check-cluster.outputs.cluster-exists == 'true'
