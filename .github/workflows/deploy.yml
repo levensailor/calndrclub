@@ -102,6 +102,7 @@ jobs:
         ENVIRONMENT: ${{ steps.env.outputs.environment }}
       run: |
         echo "Building Docker image..."
+        cd backend
         docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
         docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:$ENVIRONMENT-latest
         
