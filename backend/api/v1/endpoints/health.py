@@ -12,6 +12,7 @@ router = APIRouter()
 
 @router.get("/health")
 async def health_check():
+    """Test endpoint to verify both repositories are syncing correctly"""
     """
     Basic health check endpoint
     """
