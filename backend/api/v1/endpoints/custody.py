@@ -432,8 +432,12 @@ async def get_custody_records_optimized(year: int, month: int, current_user = De
         cached_custody = await redis_service.get(custody_cache_key)
         
         if cached_custody is not None:
-            logger.info(f"✅ Cache HIT: Returning {len(cached_custody)} custody records for {year}/{month}")
-            return cached_custody
+            # Only return cached results if they're not empty
+            if cached_custody:
+                logger.info(f"✅ Cache HIT: Returning {len(cached_custody)} custody records for {year}/{month}")
+                return cached_custody
+            else:
+                logger.info(f"🔄 Cache hit but empty, querying database for {year}/{month}")
         
         logger.info(f"🔍 Cache MISS: Querying database for custody records {year}/{month}")
         
