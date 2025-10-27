@@ -92,7 +92,6 @@ try:
         settings.DATABASE_URL,
         min_size=2,      # Reduced minimum connections to save resources
         max_size=10,     # Reduced maximum connections to prevent overload
-        pool_recycle=300,  # Recycle connections every 5 minutes
         # Note: other connection parameters like SSL, timeout, etc. are handled 
         # at the asyncpg level through the DATABASE_URL connection string
     )
