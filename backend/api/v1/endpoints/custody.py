@@ -167,10 +167,22 @@ async def bulk_create_custody(custody_records: List[CustodyRecord], current_user
             
             # Invalidate cache for this family since custody affects events display
             await redis_service.clear_family_cache(family_id)
-            # Also clear custody-specific cache
-            custody_pattern = f"custody:family:{family_id}:*"
+            
+            # Get all affected months from the records
+            affected_months = set((record.date.year, record.date.month) for record in sorted_records)
+            for year, month in affected_months:
+                # Clear main custody cache
+                custody_cache_key = f"custody_opt:family:{family_id}:{year}:{month:02d}"
+                await redis_service.delete(custody_cache_key)
+                # Clear handoff cache
+                handoff_cache_key = f"handoff_only:family:{family_id}:{year}:{month:02d}"
+                await redis_service.delete(handoff_cache_key)
+                logger.info(f"🔄 Invalidated custody cache for family {family_id} month {year}/{month:02d}")
+            
+            # Also clear any pattern-based caches for extra safety
+            custody_pattern = f"custody*:family:{family_id}:*"
             await redis_service.delete_pattern(custody_pattern)
-            logger.info(f"🔄 Invalidated events and custody cache for family {family_id} after bulk creating custody records")
+            logger.info(f"🔄 Invalidated all custody caches for family {family_id} after bulk creating records")
             
             return {
                 "status": "success",
