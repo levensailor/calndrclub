@@ -154,9 +154,6 @@ async def bulk_create_custody(custody_records: List[CustodyRecord], current_user
                 "handoff_time": handoff_time_value,
                 "handoff_location": handoff_location_value,
                 "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
-                "created_by": actor_id,
-                "updated_by": actor_id
             })
             
             previous_custodian_id = custody_data.custodian_id
