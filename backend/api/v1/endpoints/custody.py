@@ -64,6 +64,134 @@ async def create_custody(custody_data: CustodyRecord, current_user = Depends(get
         
         # Insert new record
         insert_query = custody.insert().values(
+            id=str(uuid.uuid4()),
+            family_id=family_id,
+            date=custody_data.date,
+            custodian_id=custody_data.custodian_id,
+            handoff_day=handoff_day_value,
+            handoff_time=custody_data.handoff_time,
+            handoff_location=custody_data.handoff_location,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow(),
+            created_by=actor_id,
+            updated_by=actor_id
+        )
+        
+        record_id = await database.execute(insert_query)
+        
+        # Invalidate cache for this family since custody affects events display
+        await redis_service.clear_family_cache(family_id)
+        # Also clear custody-specific cache
+        custody_pattern = f"custody:family:{family_id}:*"
+        await redis_service.delete_pattern(custody_pattern)
+        logger.info(f"🔄 Invalidated events and custody cache for family {family_id} after creating custody record")
+        
+        # Send notification about custody change
+        await send_custody_change_notification(family_id, custody_data.date)
+        
+        # Return the created record
+        return {
+            "id": record_id,
+            "family_id": family_id,
+            "date": custody_data.date,
+            "custodian_id": custody_data.custodian_id,
+            "handoff_day": handoff_day_value,
+            "handoff_time": custody_data.handoff_time,
+            "handoff_location": custody_data.handoff_location,
+            "created_at": datetime.utcnow(),
+            "updated_at": datetime.utcnow(),
+            "created_by": actor_id,
+            "updated_by": actor_id
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error creating custody record: {e}")
+        logger.error(f"📋 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error while creating custody: {e}")
+
+@router.post("/bulk", response_model=dict)
+async def bulk_create_custody(custody_records: List[CustodyRecord], current_user = Depends(get_current_user)):
+    """
+    Creates multiple custody records in a single transaction for improved performance.
+    Useful for onboarding or schedule template applications.
+    """
+    logger.info(f"📦 Received bulk custody creation request for {len(custody_records)} records")
+    
+    family_id = current_user['family_id']
+    actor_id = current_user['id']
+    
+    try:
+        # Sort records by date to properly detect handoffs
+        sorted_records = sorted(custody_records, key=lambda x: x.date)
+        
+        # Prepare bulk insert data
+        insert_values = []
+        previous_custodian_id = None
+        
+        for custody_data in sorted_records:
+            # Determine handoff_day value
+            handoff_day_value = custody_data.handoff_day
+            handoff_time_value = custody_data.handoff_time
+            handoff_location_value = custody_data.handoff_location
+            
+            # Auto-detect handoff if not explicitly set
+            if handoff_day_value is None:
+                if handoff_time_value is not None:
+                    handoff_day_value = True
+                elif previous_custodian_id is not None and previous_custodian_id != custody_data.custodian_id:
+                    handoff_day_value = True
+                    logger.info(f"🔄 Detected custodian change for {custody_data.date}, setting handoff_day=True")
+                else:
+                    handoff_day_value = False
+            
+            record_id = str(uuid.uuid4())
+            insert_values.append({
+                "id": record_id,
+                "family_id": family_id,
+                "date": custody_data.date,
+                "custodian_id": custody_data.custodian_id,
+                "handoff_day": handoff_day_value,
+                "handoff_time": handoff_time_value,
+                "handoff_location": handoff_location_value,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+                "created_by": actor_id,
+                "updated_by": actor_id
+            })
+            
+            previous_custodian_id = custody_data.custodian_id
+        
+        # Perform bulk insert
+        if insert_values:
+            # Use PostgreSQL's bulk insert for efficiency
+            insert_query = custody.insert()
+            await database.execute_many(insert_query, insert_values)
+            
+            logger.info(f"✅ Successfully created {len(insert_values)} custody records via bulk insert")
+            
+            # Invalidate cache for this family since custody affects events display
+            await redis_service.clear_family_cache(family_id)
+            # Also clear custody-specific cache
+            custody_pattern = f"custody:family:{family_id}:*"
+            await redis_service.delete_pattern(custody_pattern)
+            logger.info(f"🔄 Invalidated events and custody cache for family {family_id} after bulk creating custody records")
+            
+            return {
+                "status": "success",
+                "records_created": len(insert_values),
+                "message": f"Successfully created {len(insert_values)} custody records"
+            }
+        else:
+            return {
+                "status": "success", 
+                "records_created": 0,
+                "message": "No records to create"
+            }
+            
+    except Exception as e:
+        logger.error(f"❌ Error in bulk custody creation: {e}")
+        logger.error(f"📋 Full traceback: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Internal server error during bulk custody creation: {e}") custody.insert().values(
             family_id=family_id,
             date=custody_data.date,
             custodian_id=custody_data.custodian_id,
