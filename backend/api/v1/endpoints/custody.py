@@ -144,12 +144,11 @@ async def bulk_create_custody(custody_records: List[CustodyRecord], current_user
                 else:
                     handoff_day_value = False
             
-            record_id = str(uuid.uuid4())
             insert_values.append({
-                "id": record_id,
                 "family_id": family_id,
                 "date": custody_data.date,
                 "custodian_id": custody_data.custodian_id,
+                "actor_id": actor_id,
                 "handoff_day": handoff_day_value,
                 "handoff_time": handoff_time_value,
                 "handoff_location": handoff_location_value,
