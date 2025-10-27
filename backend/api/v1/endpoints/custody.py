@@ -191,65 +191,7 @@ async def bulk_create_custody(custody_records: List[CustodyRecord], current_user
     except Exception as e:
         logger.error(f"❌ Error in bulk custody creation: {e}")
         logger.error(f"📋 Full traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal server error during bulk custody creation: {e}") custody.insert().values(
-            family_id=family_id,
-            date=custody_data.date,
-            custodian_id=custody_data.custodian_id,
-            actor_id=actor_id,
-            handoff_day=handoff_day_value,
-            handoff_time=datetime.strptime(custody_data.handoff_time, '%H:%M').time() if custody_data.handoff_time else None,
-            handoff_location=custody_data.handoff_location,
-            created_at=datetime.now()
-        )
-        record_id = await database.execute(insert_query)
-            
-        # Invalidate cache for this month with verification
-        cache_key = f"custody_opt:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
-        cache_existed = await redis_service.exists(cache_key)
-        cache_deleted = await redis_service.delete(cache_key)
-        
-        # Also invalidate handoff-only cache
-        handoff_cache_key = f"handoff_only:family:{family_id}:{custody_data.date.year}:{custody_data.date.month:02d}"
-        handoff_cache_existed = await redis_service.exists(handoff_cache_key)
-        handoff_cache_deleted = await redis_service.delete(handoff_cache_key)
-        
-        # Verify cache invalidation
-        if cache_existed and not cache_deleted:
-            logger.warning(f"⚠️ Failed to invalidate main custody cache: {cache_key}")
-        if handoff_cache_existed and not handoff_cache_deleted:
-            logger.warning(f"⚠️ Failed to invalidate handoff cache: {handoff_cache_key}")
-        
-        # Additional pattern-based cache invalidation for extra safety
-        pattern = f"custody*:family:{family_id}:*"
-        pattern_deleted = await redis_service.delete_pattern(pattern)
-        
-        logger.info(f"🗑️ Cache invalidation for family {family_id} month {custody_data.date.year}/{custody_data.date.month}: "
-                   f"main_cache={'deleted' if cache_deleted else 'failed'} "
-                   f"handoff_cache={'deleted' if handoff_cache_deleted else 'failed'} "
-                   f"pattern_deleted={pattern_deleted}")
-            
-        # Get custodian name for response
-        custodian_user = await database.fetch_one(users.select().where(users.c.id == custody_data.custodian_id))
-        custodian_name = custodian_user['first_name'] if custodian_user else "Unknown"
-
-        logger.info(f"✅ Successfully created custody record for {custody_data.date}")
-
-        return CustodyResponse(
-            id=record_id,
-            event_date=str(custody_data.date),
-            content=custodian_name,
-            custodian_id=uuid_to_string(custody_data.custodian_id),
-            handoff_day=handoff_day_value,
-            handoff_time=custody_data.handoff_time,
-            handoff_location=custody_data.handoff_location
-        )
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ Error creating custody record: {e}")
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal server error while creating custody: {e}")
+        raise HTTPException(status_code=500, detail=f"Internal server error during bulk custody creation: {e}")
 
 @router.put("/date/{custody_date}", response_model=CustodyResponse)
 async def update_custody_by_date(custody_date: date, custody_data: CustodyRecord, current_user = Depends(get_current_user)):
