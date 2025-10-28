@@ -64,34 +64,50 @@ async def create_enrollment_code(
                 query = enrollment_codes.select().where(enrollment_codes.c.code == code)
                 existing_code = await database.fetch_one(query)
             
-            # Create the enrollment code record
-            values = {
-                "family_id": family_id,
-                "code": code,
-                "created_by_user_id": current_user["id"],
-                "created_at": datetime.now(),
-                "invitation_sent": False,
-                "invitation_sent_at": None,
-                "coparent_first_name": None,
-                "coparent_last_name": None,
-                "coparent_email": None,
-                "coparent_phone": None
-            }
-            
-            # Add co-parent information if provided
-            if data:
-                if data.coparent_first_name:
-                    values["coparent_first_name"] = data.coparent_first_name
-                if data.coparent_last_name:
-                    values["coparent_last_name"] = data.coparent_last_name
-                if data.coparent_email:
-                    values["coparent_email"] = data.coparent_email
-                if data.coparent_phone:
-                    values["coparent_phone"] = data.coparent_phone
-            
-            # Insert the record
-            query = insert(enrollment_codes).values(**values)
-            await database.execute(query)
+            # Check if an enrollment code already exists for this family
+            existing_family_code_query = enrollment_codes.select().where(enrollment_codes.c.family_id == family_id)
+            existing_family_code = await database.fetch_one(existing_family_code_query)
+
+            if existing_family_code:
+                # Update existing code with coparent information if provided
+                if data:
+                    update_values = {}
+                    if data.coparent_first_name:
+                        update_values["coparent_first_name"] = data.coparent_first_name
+                    if data.coparent_last_name:
+                        update_values["coparent_last_name"] = data.coparent_last_name
+                    if data.coparent_email:
+                        update_values["coparent_email"] = data.coparent_email
+                    if data.coparent_phone:
+                        update_values["coparent_phone"] = data.coparent_phone
+                    
+                    if update_values:
+                        update_query = enrollment_codes.update().where(
+                            enrollment_codes.c.id == existing_family_code["id"]
+                        ).values(**update_values)
+                        await database.execute(update_query)
+                        logger.info(f"Updated enrollment code {existing_family_code['code']} with coparent information")
+                
+                code = existing_family_code["code"]
+            else:
+                # Create new enrollment code record
+                values = {
+                    "family_id": family_id,
+                    "code": code,
+                    "created_by_user_id": current_user["id"],
+                    "created_at": datetime.now(),
+                    "invitation_sent": False,
+                    "invitation_sent_at": None,
+                    "coparent_first_name": data.coparent_first_name if data else None,
+                    "coparent_last_name": data.coparent_last_name if data else None,
+                    "coparent_email": data.coparent_email if data else None,
+                    "coparent_phone": data.coparent_phone if data else None
+                }
+                
+                # Insert the record
+                query = insert(enrollment_codes).values(**values)
+                await database.execute(query)
+                logger.info(f"Created new enrollment code {code} for family {family_id}")
         except Exception as table_error:
             # If the table doesn't exist or there's another error, log it but continue
             # We'll still return a valid code to the frontend
