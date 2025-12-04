@@ -82,6 +82,10 @@ async def get_family_custodians(current_user = Depends(get_current_user)):
         
         logger.info(f"Found {len(family_members)} family members")
         
+        # Log the order of family members
+        for idx, member in enumerate(family_members):
+            logger.info(f"  Member {idx}: {member['first_name']} (ID: {member['id']}, created_at: {member['created_at']})")
+        
         if len(family_members) < 1:
             logger.warning(f"No family members found")
             raise HTTPException(status_code=404, detail="No family members found")

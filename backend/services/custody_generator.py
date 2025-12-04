@@ -42,6 +42,8 @@ class CustodyGenerator:
     async def get_family_custodians(family_id: str) -> tuple[Optional[str], Optional[str]]:
         """
         Get the two primary custodians for a family.
+        IMPORTANT: The order must match the iOS app's custodianOne and custodianTwo.
+        Both use created_at ascending order, so parent1 = first created user, parent2 = second created user.
         
         Args:
             family_id: The family ID
@@ -50,6 +52,8 @@ class CustodyGenerator:
             Tuple of (parent1_id, parent2_id) or (None, None) if not enough members
         """
         try:
+            # Must order by created_at to match iOS app's custodianOne/custodianTwo ordering
+            # Important: Do NOT filter by status here - iOS doesn't filter
             custodians_query = users.select().where(
                 users.c.family_id == family_id
             ).order_by(users.c.created_at.asc().nulls_last())
@@ -57,7 +61,14 @@ class CustodyGenerator:
             family_members = await database.fetch_all(custodians_query)
             
             if len(family_members) >= 2:
-                return str(family_members[0]['id']), str(family_members[1]['id'])
+                parent1_id = str(family_members[0]['id'])  # Maps to custodianOne in iOS
+                parent2_id = str(family_members[1]['id'])  # Maps to custodianTwo in iOS
+                
+                logger.info(f"Custody mapping for family {family_id}:")
+                logger.info(f"  parent1 -> {family_members[0]['first_name']} (ID: {parent1_id})")
+                logger.info(f"  parent2 -> {family_members[1]['first_name']} (ID: {parent2_id})")
+                
+                return parent1_id, parent2_id
             
             logger.warning(f"Family {family_id} has less than 2 members")
             return None, None
@@ -121,6 +132,12 @@ class CustodyGenerator:
                 logger.error(f"No weekly pattern found in template {template['id']}")
                 return 0
             
+            logger.info(f"Template pattern type: {template['pattern_type']}")
+            logger.info(f"Pattern data: {pattern_data}")
+            logger.info(f"Parent mapping for template application:")
+            logger.info(f"  'parent1' in template -> {parent1_id}")
+            logger.info(f"  'parent2' in template -> {parent2_id}")
+            
             # Get existing records if we need to respect them
             existing_by_date = {}
             if respect_existing:
@@ -154,11 +171,15 @@ class CustodyGenerator:
                     custodian_assignment = pattern_data[day_of_week]
                     
                     # Map logical assignment to actual custodian ID
+                    # parent1 in template -> custodianOne in iOS -> first user by created_at
+                    # parent2 in template -> custodianTwo in iOS -> second user by created_at
                     actual_custodian_id = None
                     if custodian_assignment == 'parent1':
                         actual_custodian_id = parent1_id
+                        logger.debug(f"  {current_date} ({day_of_week}): parent1 -> {actual_custodian_id}")
                     elif custodian_assignment == 'parent2':
                         actual_custodian_id = parent2_id
+                        logger.debug(f"  {current_date} ({day_of_week}): parent2 -> {actual_custodian_id}")
                     
                     if actual_custodian_id:
                         # Determine if this is a handoff day

@@ -137,6 +137,9 @@ async def create_schedule_template(template_data: ScheduleTemplateCreate, curren
     If this template is marked as active, all other templates will be marked as inactive.
     """
     try:
+        logger.info(f"Creating schedule template: {template_data.name}")
+        logger.info(f"Pattern type: {template_data.pattern_type}")
+        
         # If this template is being set as active, deactivate all other templates for this family
         if template_data.is_active:
             deactivate_query = schedule_templates.update().where(
@@ -148,6 +151,12 @@ async def create_schedule_template(template_data: ScheduleTemplateCreate, curren
         # Convert pattern data to JSON
         weekly_pattern_json = template_data.weekly_pattern.dict() if template_data.weekly_pattern else None
         alternating_pattern_json = template_data.alternating_weeks_pattern.dict() if template_data.alternating_weeks_pattern else None
+        
+        # Log the weekly pattern to debug parent assignments
+        if weekly_pattern_json:
+            logger.info(f"Weekly pattern received from iOS:")
+            for day, assignment in weekly_pattern_json.items():
+                logger.info(f"  {day}: {assignment}")
         
         insert_query = schedule_templates.insert().values(
             family_id=current_user['family_id'],
