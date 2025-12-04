@@ -8,6 +8,7 @@ from core.security import get_current_user, uuid_to_string
 from core.logging import logger
 from db.models import schedule_templates, custody
 from services.redis_service import redis_service
+from services.custody_generator import CustodyGenerator
 from schemas.schedule import (
     ScheduleTemplate, ScheduleTemplateCreate, ScheduleApplication, 
     ScheduleApplicationResponse, SchedulePatternType, WeeklySchedulePattern,
@@ -333,8 +334,10 @@ async def delete_schedule_template(template_id: int, current_user = Depends(get_
 @router.post("/apply", response_model=ScheduleApplicationResponse)
 async def apply_schedule_template(application: ScheduleApplication, current_user = Depends(get_current_user)):
     """
-    Apply a schedule template to a date range, creating custody records.
+    Apply a schedule template to future dates, creating custody records.
     The applied template will be marked as the current active template.
+    Always starts from tomorrow and generates 90 days of records.
+    Past custody events are never modified.
     """
     try:
         # Get the template
@@ -361,130 +364,51 @@ async def apply_schedule_template(application: ScheduleApplication, current_user
         
         logger.info(f"Set template {application.template_id} as active when applying schedule")
         
-        # Parse dates
-        start_date = datetime.fromisoformat(application.start_date.replace('Z', '+00:00')).date()
-        end_date = datetime.fromisoformat(application.end_date.replace('Z', '+00:00')).date()
+        # Always start from tomorrow, never modify past or today's custody
+        tomorrow = (datetime.now().date() + timedelta(days=1))
+        
+        # If application specified dates, use them but ensure they're in the future
+        if application.start_date and application.end_date:
+            requested_start = datetime.fromisoformat(application.start_date.replace('Z', '+00:00')).date()
+            requested_end = datetime.fromisoformat(application.end_date.replace('Z', '+00:00')).date()
+            # Use the later of tomorrow or requested start
+            start_date = max(tomorrow, requested_start)
+            # Use requested end if it's in the future, otherwise 90 days from start
+            if requested_end > start_date:
+                end_date = requested_end
+            else:
+                end_date = start_date + timedelta(days=90)
+        else:
+            # Default: tomorrow + 90 days
+            start_date = tomorrow
+            end_date = tomorrow + timedelta(days=90)
+        
+        logger.info(f"Applying template from {start_date} to {end_date}")
         
         family_id = current_user['family_id']
         
-        # Get family custodians to map parent1/parent2 to actual IDs
-        from db.models import users
-        custodians_query = users.select().where(users.c.family_id == family_id).order_by(
-            users.c.created_at.asc().nulls_last()
+        # Use the custody generator service to apply the template
+        days_applied = await CustodyGenerator.generate_custody_from_template(
+            template=dict(template_record),
+            start_date=start_date,
+            end_date=end_date,
+            family_id=family_id,
+            actor_id=current_user['id'],
+            respect_existing=not application.overwrite_existing  # Invert the flag
         )
-        family_members = await database.fetch_all(custodians_query)
         
-        if len(family_members) < 2:
-            raise HTTPException(status_code=400, detail="Family must have at least two members to apply custody schedule")
-        
-        parent1_id = family_members[0]['id']
-        parent2_id = family_members[1]['id']
-        
-        logger.info(f"Mapping: parent1 -> {parent1_id}, parent2 -> {parent2_id}")
-        
-        # Parse the weekly pattern
-        if template_record['pattern_type'] != 'weekly':
-            raise HTTPException(status_code=400, detail="Only weekly patterns are currently supported for schedule application")
-        
-        pattern_data = template_record['weekly_pattern']
-        if isinstance(pattern_data, str):
-            try:
-                pattern_data = json.loads(pattern_data)
-            except json.JSONDecodeError:
-                logger.error(f"Invalid JSON in weekly_pattern for template {template_record['id']}")
-                raise HTTPException(status_code=400, detail="Invalid weekly pattern data")
-        
-        if not pattern_data:
-            raise HTTPException(status_code=400, detail="No weekly pattern found in template")
-        
-        # Prepare custody records for bulk creation
-        custody_records_to_create = []
-        custody_records_to_update = []
+        # Count any conflicts that were overwritten (if overwrite was enabled)
         conflicts_overwritten = 0
-        days_applied = 0
-        current_date = start_date
-        
-        # Get existing custody records in the date range for conflict detection
-        from db.models import custody
-        existing_custody_query = custody.select().where(
-            (custody.c.family_id == family_id) &
-            (custody.c.date.between(start_date, end_date))
-        )
-        existing_records = await database.fetch_all(existing_custody_query)
-        existing_by_date = {record['date']: record for record in existing_records}
-        
-        # Track previous day's custodian for handoff detection
-        previous_custodian_id = None
-        
-        while current_date <= end_date:
-            day_of_week = current_date.strftime('%A').lower()
-            
-            if day_of_week in pattern_data and pattern_data[day_of_week]:
-                custodian_assignment = pattern_data[day_of_week]
-                
-                # Map logical assignment to actual custodian ID
-                actual_custodian_id = None
-                if custodian_assignment == 'parent1':
-                    actual_custodian_id = parent1_id
-                elif custodian_assignment == 'parent2':
-                    actual_custodian_id = parent2_id
-                
-                if actual_custodian_id:
-                    # Determine if this is a handoff day
-                    is_handoff_day = (previous_custodian_id is not None and 
-                                    previous_custodian_id != actual_custodian_id)
-                    
-                    # Set handoff time and location for handoff days
-                    handoff_time = None
-                    handoff_location = None
-                    
-                    if is_handoff_day:
-                        # Determine handoff time based on day of week
-                        weekday = current_date.weekday()  # Monday = 0, Sunday = 6
-                        is_weekend = weekday >= 5  # Saturday = 5, Sunday = 6
-                        
-                        if is_weekend:
-                            handoff_time = datetime.strptime("12:00", '%H:%M').time()  # Noon for weekends
-                            handoff_location = "other"
-                        else:
-                            handoff_time = datetime.strptime("17:00", '%H:%M').time()  # 5pm for weekdays
-                            handoff_location = "daycare"
-                    
-                    # Check if record already exists
-                    if current_date in existing_by_date:
-                        if application.overwrite_existing:
-                            # Update existing record
-                            existing_record = existing_by_date[current_date]
-                            update_query = custody.update().where(custody.c.id == existing_record['id']).values(
-                                custodian_id=actual_custodian_id,
-                                actor_id=current_user['id'],
-                                handoff_day=is_handoff_day,
-                                handoff_time=handoff_time,
-                                handoff_location=handoff_location
-                            )
-                            await database.execute(update_query)
-                            conflicts_overwritten += 1
-                            days_applied += 1
-                        # If not overwriting, skip this date
-                    else:
-                        # Create new record
-                        insert_query = custody.insert().values(
-                            family_id=family_id,
-                            date=current_date,
-                            custodian_id=actual_custodian_id,
-                            actor_id=current_user['id'],
-                            handoff_day=is_handoff_day,
-                            handoff_time=handoff_time,
-                            handoff_location=handoff_location,
-                            created_at=datetime.now()
-                        )
-                        await database.execute(insert_query)
-                        days_applied += 1
-                    
-                    # Update previous custodian for next iteration
-                    previous_custodian_id = actual_custodian_id
-            
-            current_date += timedelta(days=1)
+        if application.overwrite_existing:
+            # Query to count how many existing future records were in the range
+            from db.models import custody
+            existing_query = custody.select().where(
+                (custody.c.family_id == family_id) &
+                (custody.c.date.between(start_date, end_date)) &
+                (custody.c.date > datetime.now().date())
+            )
+            existing_records = await database.fetch_all(existing_query)
+            conflicts_overwritten = len(existing_records)
         
         # Invalidate cache for this family since we created/updated custody records
         await redis_service.clear_family_cache(family_id)

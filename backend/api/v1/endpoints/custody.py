@@ -12,6 +12,7 @@ from db.models import custody, users
 from schemas.custody import CustodyRecord, CustodyResponse
 from services.notification_service import send_custody_change_notification
 from services.redis_service import redis_service
+from services.custody_generator import CustodyGenerator
 
 router = APIRouter()
 
@@ -469,6 +470,29 @@ async def get_custody_records_optimized(year: int, month: int, current_user = De
         query_duration = (datetime.now() - start_time).total_seconds()
         
         logger.info(f"⚡ Database query completed in {query_duration:.3f}s ({len(db_records)} records)")
+        
+        # If no records found and this is a future month, try auto-generation
+        if len(db_records) == 0 and start_date > date.today():
+            logger.info(f"🤖 No records found for future month {year}/{month}, attempting auto-generation")
+            
+            # Auto-generate custody records from active template
+            records_generated = await CustodyGenerator.auto_generate_for_month(
+                family_id=family_id,
+                year=year,
+                month=month,
+                actor_id=current_user['id']
+            )
+            
+            if records_generated > 0:
+                logger.info(f"✨ Auto-generated {records_generated} custody records for {year}/{month}")
+                
+                # Re-query for the newly created records
+                db_records = await database.fetch_all(query, {
+                    'family_id': family_id,
+                    'start_date': start_date,
+                    'end_date': end_date
+                })
+                logger.info(f"📦 Retrieved {len(db_records)} auto-generated records")
         
         # Convert records to CustodyResponse format with minimal processing
         custody_responses = []
