@@ -9,6 +9,8 @@ import traceback
 import logging
 import uuid
 from core.config import settings
+
+logger = logging.getLogger(__name__)
 from core.security import get_current_user, get_password_hash, verify_password
 from core.database import database
 from db.models import users, user_preferences, user_profiles, families
@@ -96,11 +98,14 @@ async def create_user(user: UserCreate):
 @router.get("/profile", response_model=UserProfile)
 async def get_current_user_profile(current_user = Depends(get_current_user)):
     """Get current user profile."""
+    logger.info(f"Fetching profile for user {current_user['id']}")
+    
     user_data = await database.fetch_one(
         users.select().where(users.c.id == current_user['id'])
     )
     
     if not user_data:
+        logger.error(f"User not found: {current_user['id']}")
         raise HTTPException(status_code=404, detail="User not found")
     
     # Get user preferences
@@ -127,6 +132,9 @@ async def get_current_user_profile(current_user = Depends(get_current_user)):
         user_dict['created_at'] = str(user_dict['created_at'])
     if user_dict.get('updated_at'):
         user_dict['updated_at'] = str(user_dict['updated_at'])
+    # Convert selected_theme_id UUID to string if present
+    if user_dict.get('selected_theme_id'):
+        user_dict['selected_theme_id'] = str(user_dict['selected_theme_id'])
 
     # Ensure nullable boolean fields have a default
     user_dict['enrolled'] = user_dict.get('enrolled') or False
@@ -137,7 +145,14 @@ async def get_current_user_profile(current_user = Depends(get_current_user)):
     profile_keys = UserProfile.model_fields.keys()
     user_profile_data = {k: v for k, v in user_dict.items() if k in profile_keys}
     
-    return UserProfile(**user_profile_data)
+    logger.info(f"Returning profile data for user {current_user['id']}: {list(user_profile_data.keys())}")
+    
+    try:
+        return UserProfile(**user_profile_data)
+    except Exception as e:
+        logger.error(f"Error creating UserProfile response: {e}")
+        logger.error(f"Profile data: {user_profile_data}")
+        raise HTTPException(status_code=500, detail=f"Error formatting profile data: {str(e)}")
 
 @router.put("/profile", response_model=UserProfile)
 async def update_user_profile(user_update: UserProfileUpdate, current_user = Depends(get_current_user)):

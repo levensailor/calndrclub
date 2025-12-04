@@ -90,7 +90,7 @@ class UserProfile(BaseSchema):
     last_signed_in: Optional[str] = None
     created_at: Optional[str] = None
     family_id: str
-    selected_theme_id: Optional[uuid.UUID] = None
+    selected_theme_id: Optional[str] = None  # Changed from UUID to str for iOS compatibility
     theme: Optional[str] = None
 
 class UserPreferences(BaseSchema):
