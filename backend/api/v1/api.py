@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 from .endpoints import (
-    auth, users, family, events, custody, notifications, profile, reminders,
+    auth, users, family, events, custody, custody_maintenance, notifications, profile, reminders,
     babysitters, emergency_contacts, group_chat, children, daycare_providers, school_providers,
     weather, school_events, themes, schedule_templates, journal, phone_verification,
     medical_providers, medications, health, enrollment, email_verification, enrollment_flow
@@ -15,6 +15,7 @@ api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(family.router, prefix="/family", tags=["family"])
 api_router.include_router(events.router, prefix="/events", tags=["events"])
 api_router.include_router(custody.router, prefix="/custody", tags=["custody"])
+api_router.include_router(custody_maintenance.router, prefix="/custody-maintenance", tags=["custody_maintenance"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(profile.router, prefix="/user/profile", tags=["profile"])
 api_router.include_router(reminders.router, prefix="/reminders", tags=["reminders"])
